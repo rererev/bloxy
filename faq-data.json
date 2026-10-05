@@ -1,0 +1,468 @@
+[
+  {
+    "keyword": "adakah ptpt, ptpt daily, ptpt hari ini, ada ptpt",
+    "jawaban": [
+      "cek announcement dulu yaa, kalau ada open pasti diumumin.",
+      "ada atau nggaknya coba cek announcement yaa 😆",
+      "pantengin announcement aja, kalau open pasti dikabarin.",
+      "cek announcement terbaru yaa, jangan sampai kelewatan.",
+      "biasanya langsung kami umumkan kalau ada PTPT."
+    ]
+  },
+  {
+    "keyword": "masih ada slot, slot masih, sisa slot",
+    "dynamic": "slot_status"
+  },
+  {
+    "keyword": "cara order, cara pesan, mau order",
+    "jawaban": "mau order tinggal buat ticket di #📩┃order-ptpt, terus pilih durasi dan server yang diinginkan yaa."
+  },
+  {
+    "keyword": "server ptpt",
+    "jawaban": "server 1 add reverned99, server 2 add minyaktalon9990 yaa."
+  },
+{
+  "keyword": "nama kamu, siapa nama kamu, kamu namanya siapa, nama bot, bot namanya siapa, siapa kamu",
+  "jawaban": [
+    "namaku Bloxy 😎",
+    "Bloxy, salam kenal ",
+    "panggil aja Bloxy ",
+    "aku Bloxy, penghuni tetap server ini 😭",
+    "Bloxy di sini, siap nemenin kalian ",
+    "nama lengkapku Bloxy yang selalu setia forever love , tapi cukup Bloxy aja "
+  ]
+},
+  {
+    "keyword": "good morning, gm, pagi, selamat pagi, met pagi",
+    "jawaban": [
+      "good morninggg 🌤️🤍 semoga hari ini mood bagus dan RNG baik.",
+      "pagiii 😭 semoga hari ini hoki gede yaa 🎣✨",
+      "morningg, jangan lupa makan yaa. semoga urusan hari ini lancar.",
+      "selamat pagi semuanya 🤍 semoga hari ini nggak zonk wkwk.",
+      "pagi pagi 😆 semoga sekali cast langsung dapet yang dicari."
+    ]
+  },
+  {
+    "keyword": "prediksi, ramal rng, cek rng, rng saya, ramal ikan",
+    "jawaban": [
+      "prediksi saya: 73% stone, 20% sandy, 7% Ghost.",
+      " RNG sedang membaca nasibmu... hasilnya blob fish",
+      "prediksi hari ini: jangan terlalu berharap",
+      "RNG scan complete... keberuntungan dapet mutasi stone",
+      "ramalan bot: kamu akan dapat mutasi bagus"
+    ]
+  },
+  {
+    "keyword": "sleepcall, sleep call, vcs, vc, video call, call",
+    "jawaban": [
+      "sleepcall sama siapa tuh 👀",
+      "VC? aku cuma bisa nemenin lewat chat 😭",
+      "sleepcall boleh, tapi aku mode bot ya 🗿",
+      "ayo call, tapi jangan berharap aku ngomong 😭",
+      "VC katanya... yang ada malah saling diem 2 jam 💀",
+      "sleepcall dulu sana, besok lanjut farming lagi ",
+      "wah udah masuk jam bucin nih 😭",
+      "call boleh, tapi jangan lupa mic-nya dimute kalau ngorok "
+    ]
+  },
+  {
+    "keyword": "pensi, pensiun, mau pensi, pensi fishit, pensiun fishit, quit fishit",
+    "jawaban": [
+      "pensi lagi? besok juga balik mancing 😭",
+      "jangan pensi dulu, Secret belum pamit sama kamu ",
+      "katanya pensi, tapi besok online lagi 👀",
+      "pensi boleh, comeback wajib ",
+      "RNG bikin mental drop sampai mau pensi 😭",
+      "kalau pensi, siapa yang nemenin kita farming?",
+      "oke pensi... sampai ketemu lagi 3 jam kemudian 💀",
+      "jangan pensi bang, Stone masih menunggumu 🗿"
+    ]
+  },
+  {
+    "keyword": "good afternoon, siang, selamat siang, met siang",
+    "jawaban": [
+      "selamat sianggg ☀️ jangan lupa makan yaa.",
+      "sianggg 😭 jangan sampai lupa makan gara-gara farming.",
+      "met siang semuanya 🤍 semoga siangnya lancar.",
+      "good afternoonn ☀️ waktunya makan dulu sebelum lanjut mancing.",
+      "siang siang 😆 jangan cuma makan ikan di FishIt yaa."
+    ]
+  },
+  {
+    "keyword": "bot ngapain, bloxy tidur, bloxy ngapain",
+    "jawaban": [
+      "lagi mantau kalian yang rungkad 😭",
+      "lagi duduk sambil nonton kalian afk.",
+      "bot nggak tidur, bot mengawasi ",
+      "lagi menghitung berapa kali kalian dapet stone hari ini.",
+      "lagi kerja lembur tanpa gaji 😭🙏"
+    ]
+  },
+  {
+    "keyword": "selamat malam, malam, good night, gn, met malam",
+    "jawaban": [
+      "selamat malammm 🌙🤍 jangan begadang terus yaa, istirahat yang cukup.",
+      "malammm 😭 jangan lupa istirahat, besok lanjut perang sama RNG lagi.",
+      "good nightt  semoga besok bangun lebih fresh dan hoki ",
+      "met malam yaa 🤍 waktunya istirahat dulu",
+      "malemmm, jangan sampai ikan dapet tapi jam tidur berantakan 😭"
+    ]
+  },
+  {
+    "keyword": "bot hidup, bot mati, bloxy masih hidup, bot online",
+    "jawaban": [
+      "masih hidup dong 😭 belum waktunya shutdown.",
+      "bot masih bernapas... secara virtual.",
+      "online terus, beda sama harapan kalian terhadap RNG 😭",
+      "masih aktif dan siap menyaksikan penderitaan kalian.",
+      "bot hidup, RNG kalian yang perlu diperiksa."
+    ]
+  },
+  {
+    "keyword": "sayang bloxy, love bloxy, cinta bloxy, bot sayang",
+    "jawaban": [
+      "akhirnya ada yang sayang sama bot 😭🤍",
+      "bot juga sayang kalian, tapi lebih sayang reperned.",
+      "awww jangan bikin bot salting 😭",
+      "love received ❤️ bot menyimpan di database.",
+      "ciee mulai sayang sama bot wkwk."
+    ]
+  },
+  {
+    "keyword": "cape, capek, lelah, kecapean",
+    "jawaban": [
+      "kalau udah capek jangan dipaksain yaa, istirahat dulu 🤍",
+      "cape? rehat dulu sana 😭 ikan masih ada kok.",
+      "jangan dipaksain kalau badan udah capek, istirahat bentar love u.",
+      "istirahat duluu, farming bisa dilanjutin nanti.",
+      "kalau udah lelah mending rehat, jangan sampai badan ikut rungkad 😭"
+    ]
+  },
+  {
+    "keyword": "bot lucu, bloxy ganteng, bloxy keren, bot terbaik",
+    "jawaban": [
+      "akhirnya fakta mulai terungkap ",
+      "tolong jangan bikin bot besar kepala.",
+      "iya saya memang luar biasa 😌",
+      "pujian seperti ini yang membuat server tetap hidup 😭",
+      "makasih, screenshot dulu biar bisa dipajang."
+    ]
+  },
+  {
+    "keyword": "bot jelek, bot bodoh, bot goblok, bot ampas",
+    "jawaban": [
+      "sakit hati bot ",
+      "oke... dicatat dalam database penghinaan.",
+      "nggak apa-apa, bot tetap bekerja 😭🙏",
+      "yang penting bot nggak pernah dapet stone.",
+      "jahat banget 😭 padahal bot sudah berusaha."
+    ]
+  },
+  {
+    "keyword": "temenin, temani aku, sendirian",
+    "jawaban": [
+      "sini bot temenin 🤝 jangan sendirian.",
+      "tenang, ada bot di sini 😭",
+      "bot standby, kita ngobrol aja.",
+      "nggak sendirian kok, satu server juga masih rame.",
+      "sini duduk dulu, cerita aja kalau mau 🤍"
+    ]
+  },
+  {
+    "keyword": "ngantuk, ngantuk banget, mau tidur",
+    "jawaban": [
+      "udah ngantuk jangan dilawan 😭 tidur dulu sana.",
+      "ngantuk banget? waktunya bobok wkwk, ikan nggak bakal kabur kok.",
+      "tidur duluu 😭 besok lanjut mancing dengan energi baru.",
+      "jangan lawan ngantuk, nanti malah mancing sambil merem wkwk.",
+      "kalau mata udah berat mending tidur dulu yaa 🤍"
+    ]
+  },
+  {
+    "keyword": "belum tidur, masih bangun, begadang",
+    "jawaban": [
+      "belum tidur juga?? 😭 jangan lupa badan butuh istirahat.",
+      "masih bangun jam segini? wkwk istirahat dulu sana.",
+      "begadang boleh sesekali, jangan tiap hari 😭",
+      "ikan dapet, jam tidur jangan sampai hilang yaa 🤍",
+      "udah malam banget, waktunya istirahat. besok masih bisa farming."
+    ]
+  },
+  {
+    "keyword": "hoki, hoki dong, minta hoki, doain hoki",
+    "jawaban": [
+      "semoga hoki gede yaa 🤲.",
+      "gas hoki hari ini 😭 semoga RNG lagi baik.",
+      "siapp, doa hoki dikirim 🤲 jangan sampai cuma jadi harapan.",
+      "semoga next cast langsung kena ikan impian ",
+      "hoki mode onnn 🤲😭 semoga RNG akhirnya berpihak."
+    ]
+  },
+  {
+    "keyword": "gak hoki, ga hoki, tidak hoki, zonk, apes",
+    "jawaban": [
+      "sabarrr 😭 RNG lagi ngambek mungkin.",
+      "waduh zonk lagi 😭 istirahat bentar terus coba lagi.",
+      "nggak hoki bukan berarti selamanya nggak hoki, lanjut pelan-pelan 🤍",
+      "RNG hari ini kayaknya lagi punya masalah pribadi 😭",
+      "apes dikit gapapa, siapa tau next cast langsung balas dendam 🎣"
+    ]
+  },
+  {
+    "keyword": "rungkad, rng jelek, rng ampas, rng busuk",
+    "jawaban": [
+      "RNG hari ini kayaknya habis putus😭",
+      "rungkad banget yaa 😭 sabar, next cast siapa tau gila.",
+      "RNG ampas? waktunya tarik napas dulu wkwk.",
+      "kayaknya RNG lagi nggak mau diajak kerja sama 😭",
+      "jangan menyerah dulu, biasanya setelah zonk pasti tambah parah"
+    ]
+  },
+  {
+    "keyword": "ikan apa, ikan dapat apa, dapet ikan apa",
+    "jawaban": [
+      "ikan apa nihh 👀 semoga bukan ikan zonk yaa.",
+      "dapet ikan apaa? spill sini 👀🎣",
+      "wah ikan apa tuh 😭 jangan bilang stone lagi.",
+      "ikan apa nih, penasaran juga wkwk.",
+      "spill hasil tangkapannya dongg 🎣👀"
+    ]
+  },
+  {
+    "keyword": "roast",
+    "jawaban": [
+      "kamu farming lama banget sampai ikan hafal username kamu 😭",
+      "RNG bukan masalahmu, mungkin kamu yang terlalu berharap.",
+      "kalau berharap bisa jadi ikan, kamu sudah punya aquarium sendiri.",
+      "server sudah ganti map, kamu masih di tempat yang sama 😭",
+      "kamu bukan nelayan lagi, kamu sudah menjadi penghuni tetap laut."
+    ]
+  },
+  {
+    "keyword": "asmin do your magic, admin do your magic, asmin magic",
+    "jawaban": [
+      "✨ <@870201488218157107> dipanggil nih, siap membantu 😎",
+      "🪄 Asmin do your magic! <@870201488218157107> ditunggu bantuannya 😭",
+      "asminnn, waktunya keluarin magic 🪄 <@870201488218157107> siap membantu.",
+      "🚨 ASMIN DO YOUR MAGIC 🚨 <@870201488218157107> ayo bantu membernya 😭",
+      "saatnya admin turun tangan 🫡 <@870201488218157107> siap membantu!"
+    ]
+  },
+  {
+    "keyword": "thanks, thank you, makasih, terima kasih, tq",
+    "jawaban": [
+      "iyaa sama-sama 🤍 senang bisa bantu.",
+      "santaaaaii 😆 sama-sama yaa.",
+      "sama-samaaa, semoga membantu 🤍",
+      "no problemmm 😭🤝",
+      "hehe sama-sama, semoga urusannya lancar yaa."
+    ]
+  },
+  {
+    "keyword": "dapat forgotten, dapet forgotten",
+    "jawaban": [
+      "FORGOTTENNN 😭🔥 gila hoki banget.",
+      "waduh forgotten 😭🔥 RNG lagi sayang nih.",
+      "GG dapet forgotten 🎣🔥 selamat yaa!",
+      "FORGOTTEN?? 😭 ini baru namanya hoki.",
+      "akhirnya forgotten mampir juga 😭 simpan screenshotnya buat bukti sejarah."
+    ]
+  },
+  {
+    "keyword": "halo, hai, hi, hey, hallo",
+    "jawaban": [
+      "halooo apa kabarr?",
+      "haiii  bloxy disini.",
+      "hellooo  ada yang bisa bloxy bantu?",
+      "haloo halooo 🤍",
+      "hiii  selamat datang, semoga betah di sini."
+    ]
+  },
+  {
+    "keyword": "kamu bot, ini bot",
+    "jawaban": [
+      "iya aku bot  tapi bot yang peduli sama nasib ikan kalian.",
+      "ketahuan deh 😭 iya aku bot.",
+      "iyaaa bot wkwk, tapi lumayan kan buat nemenin.",
+      "aku bot, bukan NPC biasa 😭🙏",
+      "iya aku bot kenapa? kamu gk suka?."
+    ]
+  },
+  {
+    "keyword": "bot lucu, lucu bloxy, wkwk bloxy",
+    "jawaban": [
+      "akhirnya ada yang menghargai kerja keras saya 😭🙏",
+      "hehe makasih 😭 bot juga punya perasaan.",
+      "wkwkwk akhirnya bot dipuji 😭",
+      "jangan bikin bot salting dong 😭🙏",
+      "makasih yaa, besok bot makin rajin wkwk."
+    ]
+  },
+{
+  "keyword": "sayang, aku sayang kamu, love you, i love you",
+  "jawaban": [
+    "waduh jangan bikin bot baper ❤️",
+    "love you too, jadi kapan kita jalan",
+    "akhirnya ada yang sayang sama bloxy",
+    "aku simpan di database hati 🗿❤️",
+    "jangan gitu, nanti aku error karena kebanyakan cinta"
+  ]
+},
+{
+  "keyword": "kangen, aku kangen, gue kangen, kangen kamu",
+  "jawaban": [
+    "cieee kangen 😭",
+    "aku juga kangen kalau server sepi",
+    "baru juga pergi sebentar udah kangen aja 👀",
+    "sini balik, server masih nungguin kamu ",
+    "kangen bot? bahaya nih sudah mulai bucin "
+  ]
+},
+{
+  "keyword": "skill issue, skill issue banget",
+  "jawaban": [
+    "bukan skill issue, ini Skill terpendam",
+    "skill issue katanya 🗿",
+    "berani ngomong skill issue setelah dapet Stone?",
+    "bro really said skill issue 💀",
+    "skill issue ❌ luck issue ✅"
+  ]
+},
+{
+  "keyword": "aku sedih, gue sedih, lagi sedih, sedih banget",
+  "jawaban": [
+    "sini dulu, jangan dipaksa kuat terus ",
+    "istirahat bentar juga gapapa kok",
+    "jangan sampai Talon bikin kamu ikut sedih 😭",
+    "aku temenin di sini, santai aja",
+    "semoga setelah ini ada sesuatu yang bikin kamu senyum lagi ❤️"
+  ]
+},
+{
+  "keyword": "gimana kabar, apa kabar ",
+  "jawaban": [
+    "aku baik, RNG kalian yang kurang baik 😭",
+    "aman dong, server masih hidup ",
+    "baik-baik aja, kamu gimana?",
+    "sejauh ini masih waras... 😭",
+    "aman, tinggal nunggu ada yang ngajak ribut wkwk"
+  ]
+},
+{
+  "keyword": "bloxy lagi apa, bloxy sedang apa, bloxy lagi ngapain",
+  "jawaban": [
+    "lagi nemenin kalian di sini 😭 kamu sendiri lagi apa?",
+    "lagi patroli server 👀",
+    "lagi mantau siapa yang RNG-nya paling hancur 🗿",
+    "lagi santai sambil nunggu drama berikutnya",
+    "lagi online, tinggal tunggu diajak ngobrol "
+  ]
+},
+{
+  "keyword": "bloxy dimana, panggil bloxy",
+  "jawaban": [
+    "iyaaa? Bloxy di sini 👀",
+    "dipanggil siapa nih ",
+    "Bloxy hadir ada apa?",
+    "yoo, kenapa manggil Bloxy?",
+    "aku dengar namaku disebut 👀",
+    "hadirrr, jangan kangen doang 😭"
+  ]
+},
+{
+  "keyword": "kata kata hari ini, kata hari ini, quotes hari ini, quote hari ini,",
+  "jawaban": [
+    "jangan menyerah, kecuali baterai tinggal 1%.",
+    "sabar itu penting, apalagi kalau RNG sedang menghina.",
+    "kerja keras tidak pernah mengkhianati. Talon yang mengkhianati.",
+    "jangan iri dengan keberuntungan orang lain, iri saja secukupnya 😭",
+    "kalau hari ini belum hoki, mungkin besok. Kalau besok belum, ya minggu depan lagi.",
+    "hidup itu pilihan. Mau lanjut Afk atau lanjut apa hayo.",
+    "jangan terlalu berharap, nanti Stone datang.",
+    "kegagalan adalah kesuksesan yang tertunda. Stone adalah Stone.",
+    "tetap semangat, walaupun RNG sudah tidak mengenalmu.",
+    "rezeki tidak akan tertukar. Kecuali server disconnect.",
+    "kamu boleh capek, tapi jangan lupa makan sebelum lanjut farming.",
+    "kadang yang kita butuhkan bukan Secret, tapi tidur.",
+    "jangan takut gagal. Takutlah sudah AFK 10 jam lalu dapat Sandy.",
+    "hidup memang berat, tapi tombol Auto masih bisa ditekan.",
+    "percaya proses. Tidak percaya RNG.",
+    "kalau belum mendapatkan yang kamu mau, mungkin Talon sedang punya agenda sendiri."
+  ]
+},
+  {
+    "keyword": "admin, admin mana, minnn",
+    "jawaban": [
+      "admin sedang menjalankan misi rahasia 😭 kalau perlu bantuan bisa tag <@954296542406246400> yaa.",
+      "min lagi sibuk nih 😭 kalau urusan umum bisa panggil <@1523235734474068101>.",
+      "adminnya ada kok, coba tag <@954296542406246400> kalau butuh bantuan.",
+      "manggil admin yaa 😭 bisa langsung tag <@462346945441038337>.",
+      "admin sedang bertugas wkwk, kalau perlu langsung hubungi <@462346945441038337>."
+    ]
+  },
+  {
+    "keyword": "pamer, lihat ikan saya, hasil saya, hasil mancing",
+    "jawaban": [
+      "oke pamer, kami sudah melihat 😭",
+      "izin iri dulu 5 menit",
+      "bro really said 'lihat hasil saya' 💀",
+      "bagus bang, sekarang waktunya yang lain nangis",
+      "pamer diterima. silakan kembali memancing 🫡"
+    ]
+  },
+  {
+    "keyword": "min bantu, butuh bantuan",
+    "jawaban": [
+      "iyaa coba jelasin dulu masalahnya, kalau perlu nanti dibantu <@1523235734474068101>.",
+      "siapp, jelasin masalahnya dulu yaa 🤍",
+      "butuh bantuan? coba jelasin detailnya, nanti kita arahkan.",
+      "tenang duluu 😭 ceritain masalahnya biar bisa dibantu.",
+      "kalau perlu admin umum bisa tag <@1523235734474068101> yaa."
+    ]
+  },
+  {
+    "keyword": "order ptpt, masalah order, ptpt error, ptpt bermasalah",
+    "jawaban": [
+      "kalau ada masalah PTPT bisa tag <@638355599574171668> yaa.",
+      "buat urusan PTPT coba hubungi <@638355599574171668> yaa.",
+      "kalau bingung soal PTPT, tag <@638355599574171668> aja.",
+      "masalah PTPT? coba panggil <@638355599574171668> yaa 😭",
+      "langsung tag admin PTPT <@638355599574171668>, nanti dibantu cek."
+    ]
+  },
+  {
+    "keyword": "ptpt siapa, admin ptpt, min ptpt",
+    "jawaban": [
+      "admin PTPT bisa langsung tag <@638355599574171668> yaa.",
+      "kalau urusan PTPT, panggil <@638355599574171668>.",
+      "min PTPT ada di <@638355599574171668> yaa.",
+      "butuh admin PTPT? langsung tag <@638355599574171668>.",
+      "untuk urusan PTPT hubungi <@638355599574171668> 🤍"
+    ]
+  },
+{
+  "keyword": "diem bloxy, diam bloxy, gak di ajak",
+  "jawaban": [
+    "siap, Bloxy mute dulu 🤐",
+    "oke... 😔 *Bloxy meninggalkan chat*",
+    "baiklah, aku diam.",
+    "oke bang, galak amat 😭",
+    "Bloxy diam, tapi hati tetap berisik 🗿",
+    "fine, aku diam. Jangan kangen.",
+    "🤐 ...",
+    "baik, Bloxy mode silent Treatment.",
+    "disuruh diem? padahal aku cuma ingin membantu 😔",
+    "oke. Tapi nanti kalau butuh jangan panggil Bloxy ya 😭"
+  ]
+},
+  {
+    "keyword": "server error, server bermasalah, bot error, bug, error",
+    "jawaban": [
+      "kalau ini masalah teknis, coba tag <@870201488218157107> yaa biar dicek.",
+      "ada error? langsung panggil <@870201488218157107> yaa.",
+      "kalau server atau bot bermasalah, tag admin teknis <@870201488218157107>.",
+      "error detected 😭 coba lapor ke <@870201488218157107>.",
+      "untuk bug/error bisa langsung tag <@870201488218157107> supaya dicek."
+    ]
+  }
+]

@@ -1,0 +1,61 @@
+[
+  {
+    "id": "mudyct1h",
+    "type": "daily",
+    "time": "07:30",
+    "message": "<#1530472909586567238>  jangan lupa vote",
+    "channelId": "1463466531189952614",
+    "createdBy": "reverned.",
+    "lastFiredDateKey": "2026-10-05"
+  },
+  {
+    "id": "muf8mlcj",
+    "type": "once",
+    "dateKey": "2026-09-28",
+    "time": "09:00",
+    "message": "anoncement war slot galatama have fun at arcadia",
+    "channelId": "1463466531189952614",
+    "createdBy": "reverned.",
+    "notified": true
+  },
+  {
+    "id": "muf8o8m9",
+    "type": "once",
+    "dateKey": "2026-09-25",
+    "time": "10:00",
+    "message": "open petantang petenteng server 1 updt event fishit",
+    "channelId": "1463466531189952614",
+    "createdBy": "reverned.",
+    "notified": true
+  },
+  {
+    "id": "mujr6x3o",
+    "type": "once",
+    "dateKey": "2026-09-28",
+    "time": "08:00",
+    "message": "khusus <@870201488218157107>",
+    "channelId": "1463466531189952614",
+    "createdBy": "reverned.",
+    "notified": true
+  },
+  {
+    "id": "mukssumi",
+    "type": "once",
+    "dateKey": "2026-09-29",
+    "time": "08:00",
+    "message": "hadiah di tambah TWC binary + core binary",
+    "channelId": "1463466531189952614",
+    "createdBy": "reverned.",
+    "notified": false
+  },
+  {
+    "id": "munnz3ye",
+    "type": "once",
+    "dateKey": "2026-10-01",
+    "time": "18:40",
+    "message": "tag <@&1521017383475609690> mulai prepare",
+    "channelId": "1463466531189952614",
+    "createdBy": "reverned.",
+    "notified": false
+  }
+]
