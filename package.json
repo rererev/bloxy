@@ -1,0 +1,17 @@
+{
+  "name": "ptpt-faq-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord FAQ untuk pertanyaan seputar order PTPT (keyword matching + AI fallback via Groq, gratis)",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
