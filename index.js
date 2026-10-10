@@ -10,6 +10,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Partials, PermissionsBitField } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const { handlePurgeCommand, containsSexualContent } = require('./moderation-extra');
 
 // ====== KONFIGURASI ======
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -834,6 +835,11 @@ async function checkAutoMod(message) {
   const bannedWord = containsBannedWord(content);
   if (bannedWord) {
     await warnAndDelete(message, 'tolong jaga kata-kata yaa di sini 🙏');
+    return true;
+  }
+
+  if (containsSexualContent(content)) {
+    await warnAndDelete(message, 'konten seperti itu gak boleh di sini yaa, pesanmu otomatis dihapus 🙏');
     return true;
   }
 
@@ -1718,6 +1724,10 @@ client.on('messageCreate', async (message) => {
   // Semua command di bawah ini dibungkus try/catch — biar kalau ada error internal,
   // GAK diem doang (susah di-debug), tapi ke-log jelas + bot kasih tau di chat.
   try {
+    if (content.startsWith('!hapus ') || content === '!hapus') {
+      await handlePurgeCommand(message, content);
+      return;
+    }
     if (content.startsWith('!umumin ') || content === '!umumin') {
       await handleAnnounceCommand(message, content);
       return;
