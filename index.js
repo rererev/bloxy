@@ -12,6 +12,7 @@ const fs = require('fs');
 const path = require('path');
 const { handlePurgeCommand, containsSexualContent } = require('./moderation-extra');
 const { handleExtraCommand, handleWarJoin, getDmSchedule, describeDmSchedule } = require('./bot-extras');
+const { handleRoleToolsCommand } = require('./role-tools');
 
 // ====== KONFIGURASI ======
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -1731,6 +1732,7 @@ client.on('messageCreate', async (message) => {
   // Semua command di bawah ini dibungkus try/catch — biar kalau ada error internal,
   // GAK diem doang (susah di-debug), tapi ke-log jelas + bot kasih tau di chat.
   try {
+    if (await handleRoleToolsCommand(message, content)) return;
     if (await handleExtraCommand(message, content)) return;
     if (content.startsWith('!hapus ') || content === '!hapus') {
       await handlePurgeCommand(message, content);
