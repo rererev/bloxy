@@ -11,6 +11,7 @@ const { Client, GatewayIntentBits, Partials, PermissionsBitField } = require('di
 const fs = require('fs');
 const path = require('path');
 const { handlePurgeCommand, containsSexualContent } = require('./moderation-extra');
+const { handleExtraCommand, handleWarJoin, getDmSchedule, describeDmSchedule } = require('./bot-extras');
 
 // ====== KONFIGURASI ======
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -1057,7 +1058,7 @@ async function handleGiveAccessCommand(message, content) {
   });
   saveAccessData(accessData);
 
-  await message.reply(`✅ Oke, ${targetUser.tag} udah dicatet — bakal di-DM reminder Server ${server} hari Minggu jam 08.00 WIB terdekat. ${EMOJI.ketjeh}`);
+  await message.reply(`✅ Oke, ${targetUser.tag} udah dicatet — bakal di-DM reminder Server ${server} ${describeDmSchedule()} terdekat. ${EMOJI.ketjeh}`);
 }
 
 function getWIBParts(date) {
@@ -1244,7 +1245,10 @@ async function checkAndSendGeneralReminders(client) {
 
 async function checkAndSendAccessReminders(client) {
   const parts = getWIBParts(new Date());
-  if (parts.weekday !== 'Sun' || parts.hour !== '08') return;
+  const sched = getDmSchedule(); // bisa diubah lewat !dmjam
+  const nowMin = (parseInt(parts.hour, 10) % 24) * 60 + parseInt(parts.minute, 10);
+  const targetMin = sched.hour * 60 + sched.minute;
+  if (parts.weekday !== sched.weekday || nowMin < targetMin || nowMin >= targetMin + 60) return;
 
   const dateKey = `${parts.year}-${parts.month}-${parts.day}`;
   if (lastAccessReminderDateKey === dateKey) return; // udah pernah jalan hari ini
@@ -1254,7 +1258,7 @@ async function checkAndSendAccessReminders(client) {
   const pending = accessData.filter((a) => !a.notified);
   if (pending.length === 0) return;
 
-  console.log(`[AccessReminder] Ngirim DM ke ${pending.length} user (Minggu 08:00 WIB)...`);
+  console.log(`[AccessReminder] Ngirim DM ke ${pending.length} user (${describeDmSchedule()})...`);
 
   for (const entry of pending) {
     const channelId = entry.server === '2' ? AUTOLIST_CHANNEL_IDS[1] : AUTOLIST_CHANNEL_IDS[0];
@@ -1721,9 +1725,13 @@ client.on('messageCreate', async (message) => {
   // Auto-moderation dicek duluan untuk SEMUA pesan (kecuali admin) sebelum command/FAQ diproses.
   if (await checkAutoMod(message)) return;
 
+  // Pendaftaran war boss: member ketik "ikut" / "batal" di channel yang war-nya lagi kebuka.
+  if (await handleWarJoin(message)) return;
+
   // Semua command di bawah ini dibungkus try/catch — biar kalau ada error internal,
   // GAK diem doang (susah di-debug), tapi ke-log jelas + bot kasih tau di chat.
   try {
+    if (await handleExtraCommand(message, content)) return;
     if (content.startsWith('!hapus ') || content === '!hapus') {
       await handlePurgeCommand(message, content);
       return;
