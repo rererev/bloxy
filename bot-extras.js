@@ -109,7 +109,25 @@ async function handleDmTimeCommand(message, content) {
 
 const WAR_FILE = 'war-data.json';
 // { [channelId]: { open, title, openedBy, openedAt, members: [{ userId, username, joinedAt }] } }
+const WAR_SERVER_SIZE = Math.max(1, parseInt(process.env.WAR_SERVER_SIZE || '15', 10) || 15);
 let warState = loadJson(WAR_FILE, {});
+
+// Tiap peserta menyimpan nomor servernya sendiri, jadi bisa dipindah manual dan tidak bergeser
+// kalau ada peserta lain yang dihapus. Data lama (belum punya server) dibagi urut per 15 orang.
+function assignMissingServers(war) {
+  war.members.forEach((m, i) => {
+    if (!m.server) m.server = Math.floor(i / WAR_SERVER_SIZE) + 1;
+  });
+}
+for (const war of Object.values(warState)) assignMissingServers(war);
+
+const serverCount = (war, server) => war.members.filter((m) => m.server === server).length;
+
+function nextFreeServer(war) {
+  for (let s = 1; ; s++) {
+    if (serverCount(war, s) < WAR_SERVER_SIZE) return s;
+  }
+}
 const saveWar = () => saveJson(WAR_FILE, warState);
 
 const JOIN_REGEX = /^\s*ikut\b/i;
@@ -169,10 +187,10 @@ async function handleWarJoin(message) {
 
   if (isJoin) {
     if (idx !== -1) {
-      await message.reply({ content: `${name}, kamu udah kecatat di nomor ${idx + 1} 👍`, allowedMentions: NO_PING });
+      await message.reply({ content: `${name}, kamu udah kecatat di nomor ${idx + 1} (Server ${war.members[idx].server}) 👍`, allowedMentions: NO_PING });
       return true;
     }
-    war.members.push({ userId, username: name, joinedAt: new Date().toISOString() });
+    war.members.push({ userId, username: name, server: nextFreeServer(war), joinedAt: new Date().toISOString() });
     saveWar();
     const reacted = await message.react('✅').then(() => true).catch(() => false);
     if (!reacted) {
@@ -189,21 +207,24 @@ async function handleWarJoin(message) {
   return true;
 }
 
-// Peserta dibagi per server, maksimal WAR_SERVER_SIZE orang per server (default 15).
-// Nomor tetap nomor urut global, jadi `!warhapus <nomor>` tetap pakai nomor yang kelihatan di list.
-const WAR_SERVER_SIZE = Math.max(1, parseInt(process.env.WAR_SERVER_SIZE || '15', 10) || 15);
-
+// Daftar ditampilkan per server. Nomor = nomor urut pendaftaran (tidak berubah walau dipindah server),
+// dipakai untuk !warhapus / !warpindah / !wartukar.
 function formatWarList(war) {
   if (!war.members.length) return '_Belum ada yang ikut._';
-  const blocks = [];
-  for (let start = 0; start < war.members.length; start += WAR_SERVER_SIZE) {
-    const chunk = war.members.slice(start, start + WAR_SERVER_SIZE);
-    const serverNo = start / WAR_SERVER_SIZE + 1;
-    const lines = chunk.map((m, i) => `${start + i + 1}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`);
-    const full = chunk.length >= WAR_SERVER_SIZE ? ' ✅ penuh' : '';
-    blocks.push(`**Server ${serverNo}** (${chunk.length}/${WAR_SERVER_SIZE}${full})\n${lines.join('\n')}`);
-  }
-  return blocks.join('\n\n');
+  const groups = new Map();
+  war.members.forEach((m, i) => {
+    const s = m.server || 1;
+    if (!groups.has(s)) groups.set(s, []);
+    groups.get(s).push(`${i + 1}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`);
+  });
+  return [...groups.keys()]
+    .sort((a, b) => a - b)
+    .map((s) => {
+      const lines = groups.get(s);
+      const full = lines.length >= WAR_SERVER_SIZE ? ' ✅ penuh' : '';
+      return `**Server ${s}** (${lines.length}/${WAR_SERVER_SIZE}${full})\n${lines.join('\n')}`;
+    })
+    .join('\n\n');
 }
 
 async function sendLong(message, header, body) {
@@ -275,6 +296,90 @@ async function handleWarRemoveCommand(message, content) {
   }
   saveWar();
   await message.reply({ content: `🗑️ ${removed.username} dihapus dari daftar (sisa ${war.members.length} orang).`, allowedMentions: NO_PING });
+}
+
+function findMember(war, token, mentioned) {
+  if (mentioned) return war.members.findIndex((m) => m.userId === mentioned.id);
+  if (/^\d+$/.test(token || '')) {
+    const i = parseInt(token, 10) - 1;
+    return i >= 0 && i < war.members.length ? i : -1;
+  }
+  return -1;
+}
+
+// !warpindah <nomor|@user> <server>
+async function handleWarMoveCommand(message, content) {
+  if (!isAdmin(message)) {
+    await message.reply('Command ini cuma buat Administrator yaa 🙏');
+    return;
+  }
+  const war = warState[message.channel.id];
+  if (!war) {
+    await message.reply('Belum ada war boss di channel ini.');
+    return;
+  }
+
+  const mentioned = message.mentions.users?.first();
+  const args = content.split(/\s+/).slice(1).filter((a) => !/^<@!?\d+>$/.test(a));
+  const target = mentioned ? args[0] : args[1];
+  const who = mentioned ? null : args[0];
+  const server = /^\d+$/.test(target || '') ? parseInt(target, 10) : 0;
+
+  if (server < 1 || server > 99) {
+    await message.reply('Format: `!warpindah <nomor> <server>` atau `!warpindah @user <server>` — contoh: `!warpindah 5 2`');
+    return;
+  }
+
+  const idx = findMember(war, who, mentioned);
+  if (idx === -1) {
+    await message.reply('Peserta itu gak ketemu. Cek nomornya pakai `!warlist`.');
+    return;
+  }
+
+  const m = war.members[idx];
+  if (m.server === server) {
+    await message.reply({ content: `${m.username} udah ada di Server ${server}.`, allowedMentions: NO_PING });
+    return;
+  }
+  if (serverCount(war, server) >= WAR_SERVER_SIZE) {
+    await message.reply(`Server ${server} udah penuh (${WAR_SERVER_SIZE}/${WAR_SERVER_SIZE}). Pakai \`!wartukar <nomor> <nomor>\` buat nuker posisi dua peserta, atau pindahin salah satu peserta server itu dulu.`);
+    return;
+  }
+
+  const from = m.server;
+  m.server = server;
+  saveWar();
+  await message.reply({ content: `✅ ${m.username} dipindah dari Server ${from} ke Server ${server}.`, allowedMentions: NO_PING });
+}
+
+// !wartukar <nomor> <nomor> — tukar server dua peserta (berguna kalau dua-duanya sudah penuh)
+async function handleWarSwapCommand(message, content) {
+  if (!isAdmin(message)) {
+    await message.reply('Command ini cuma buat Administrator yaa 🙏');
+    return;
+  }
+  const war = warState[message.channel.id];
+  if (!war) {
+    await message.reply('Belum ada war boss di channel ini.');
+    return;
+  }
+
+  const [a, b] = content.split(/\s+/).slice(1);
+  const ia = findMember(war, a, null);
+  const ib = findMember(war, b, null);
+  if (ia === -1 || ib === -1 || ia === ib) {
+    await message.reply('Format: `!wartukar <nomor> <nomor>` — contoh: `!wartukar 3 20`. Cek nomornya pakai `!warlist`.');
+    return;
+  }
+
+  const ma = war.members[ia];
+  const mb = war.members[ib];
+  [ma.server, mb.server] = [mb.server, ma.server];
+  saveWar();
+  await message.reply({
+    content: `🔁 ${ma.username} → Server ${ma.server}, ${mb.username} → Server ${mb.server}.`,
+    allowedMentions: NO_PING,
+  });
 }
 
 async function handleWarCloseCommand(message) {
@@ -354,6 +459,8 @@ async function handleHelpCommand(message) {
         value: [
           '`!war boss [keterangan]` — buka pendaftaran di channel ini',
           '`!warhapus <nomor|@user|semua>` — hapus peserta dari daftar',
+          '`!warpindah <nomor|@user> <server>` — pindahin peserta ke server tertentu',
+          '`!wartukar <nomor> <nomor>` — tukar server dua peserta',
           '`!warselesai` — tutup pendaftaran + tampilkan daftar akhir',
         ].join('\n'),
       },
@@ -412,6 +519,14 @@ async function handleExtraCommand(message, content) {
   }
   if (lower === '!warhapus' || lower.startsWith('!warhapus ')) {
     await handleWarRemoveCommand(message, content);
+    return true;
+  }
+  if (lower === '!warpindah' || lower.startsWith('!warpindah ')) {
+    await handleWarMoveCommand(message, content);
+    return true;
+  }
+  if (lower === '!wartukar' || lower.startsWith('!wartukar ')) {
+    await handleWarSwapCommand(message, content);
     return true;
   }
   if (lower === '!warselesai') {
