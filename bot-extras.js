@@ -189,9 +189,21 @@ async function handleWarJoin(message) {
   return true;
 }
 
+// Peserta dibagi per server, maksimal WAR_SERVER_SIZE orang per server (default 15).
+// Nomor tetap nomor urut global, jadi `!warhapus <nomor>` tetap pakai nomor yang kelihatan di list.
+const WAR_SERVER_SIZE = Math.max(1, parseInt(process.env.WAR_SERVER_SIZE || '15', 10) || 15);
+
 function formatWarList(war) {
   if (!war.members.length) return '_Belum ada yang ikut._';
-  return war.members.map((m, i) => `${i + 1}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`).join('\n');
+  const blocks = [];
+  for (let start = 0; start < war.members.length; start += WAR_SERVER_SIZE) {
+    const chunk = war.members.slice(start, start + WAR_SERVER_SIZE);
+    const serverNo = start / WAR_SERVER_SIZE + 1;
+    const lines = chunk.map((m, i) => `${start + i + 1}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`);
+    const full = chunk.length >= WAR_SERVER_SIZE ? ' ✅ penuh' : '';
+    blocks.push(`**Server ${serverNo}** (${chunk.length}/${WAR_SERVER_SIZE}${full})\n${lines.join('\n')}`);
+  }
+  return blocks.join('\n\n');
 }
 
 async function sendLong(message, header, body) {
