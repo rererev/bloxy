@@ -1643,6 +1643,8 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message],
 });
 
+require('./welcome')(client); // pesan sambutan member baru (!welcome)
+
 client.once('ready', () => {
   isBotSilenced = loadSilenceState();
   console.log(`Bot login sebagai ${client.user.tag}`);
