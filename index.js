@@ -1644,6 +1644,8 @@ const client = new Client({
   partials: [Partials.Channel, Partials.Message],
 });
 
+require('./verify')(client); // verifikasi member baru lewat tombol (!verifikasi)
+
 client.once('ready', () => {
   isBotSilenced = loadSilenceState();
   console.log(`Bot login sebagai ${client.user.tag}`);
