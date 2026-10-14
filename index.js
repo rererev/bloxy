@@ -8,6 +8,7 @@
 require('dotenv').config();
 
 const { Client, GatewayIntentBits, Partials, PermissionsBitField } = require('discord.js');
+const { handleHoneypotMessage } = require('./honeypot');
 const fs = require('fs');
 const path = require('path');
 const { handlePurgeCommand, containsSexualContent } = require('./moderation-extra');
@@ -1661,6 +1662,13 @@ client.once('ready', () => {
 });
 
 client.on('messageCreate', async (message) => {
+  // Honeypot: paling awal, supaya pesan jebakan gak sempat diproses fitur lain (auto-react, FAQ, dll.).
+  try {
+    if (await handleHoneypotMessage(message)) return;
+  } catch (err) {
+    console.error('Error saat cek honeypot:', err);
+  }
+
   // 1. Cek notif "Forgotten Tier Detected!" dari bot lain (blox-gank-bot) — ini HARUS
   //    jalan duluan dan gak boleh ke-block sama pengecekan "abaikan pesan dari bot" di bawah,
   //    soalnya notifnya justru datang dari bot lain.
