@@ -1645,6 +1645,7 @@ const client = new Client({
 });
 
 require('./verify')(client); // verifikasi member baru lewat tombol (!verifikasi)
+require('./poll')(client); // voting pakai tombol (!poll)
 
 client.once('ready', () => {
   isBotSilenced = loadSilenceState();

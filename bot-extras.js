@@ -3,7 +3,7 @@
 //   !dmjam [hari] [HH:MM]      → lihat / ubah jadwal DM otomatis (!dm)
 //   !war boss [keterangan]     → buka pendaftaran war boss; member ketik "ikut"
 //   !warlist / !warhapus / !warselesai
-//   !poll Pertanyaan | opsi 1 | opsi 2 ...  → bikin voting dengan reaction
+//   (!poll pindah ke poll.js)
 
 const fs = require('fs');
 const path = require('path');
@@ -401,40 +401,7 @@ async function handleWarCloseCommand(message) {
   );
 }
 
-// ====================================================================
-// 3. FITUR BEBAS: !poll — voting dengan reaction
-// ====================================================================
-
-const NUMBER_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
-
-async function handlePollCommand(message, content) {
-  if (!isAdmin(message)) {
-    await message.reply('Command ini cuma buat Administrator yaa 🙏');
-    return;
-  }
-  const parts = content
-    .replace(/^!poll\s*/i, '')
-    .split('|')
-    .map((p) => p.trim())
-    .filter(Boolean);
-
-  if (parts.length < 3 || parts.length > 11) {
-    await message.reply('Format: `!poll Pertanyaan | opsi 1 | opsi 2 | ...` (2–10 opsi). Contoh: `!poll Boss malam ini? | Jam 8 | Jam 9`');
-    return;
-  }
-
-  const [question, ...options] = parts;
-  const embed = new EmbedBuilder()
-    .setTitle(`📊 ${question}`)
-    .setDescription(options.map((o, i) => `${NUMBER_EMOJIS[i]}  ${o}`).join('\n\n'))
-    .setFooter({ text: `Poll oleh ${message.member?.displayName || message.author.username} — vote pakai reaction di bawah` });
-
-  const poll = await message.channel.send({ embeds: [embed] });
-  for (let i = 0; i < options.length; i++) {
-    await poll.react(NUMBER_EMOJIS[i]).catch(() => {});
-  }
-  await message.delete().catch(() => {});
-}
+// (!poll sekarang ada di poll.js — voting pakai tombol, 1 orang 1 suara)
 
 // ====================================================================
 // 4. !help
@@ -477,7 +444,7 @@ async function handleHelpCommand(message) {
         name: '📢 Pengumuman & jadwal (Admin)',
         value: [
           '`!umumin <teks>` — kirim pengumuman',
-          '`!poll Pertanyaan | opsi 1 | opsi 2` — bikin voting',
+          '`!poll [durasi] Pertanyaan | opsi 1 | opsi 2` — voting pakai tombol (1 orang 1 suara)',
           '`!dm @user <1|2>` — catat user buat DM reminder slot',
           '`!dmjam <hari> <HH:MM>` — ubah jadwal DM otomatis',
           '`!reminder sekali DD-MM-YYYY HH:MM <pesan>` / `!reminder harian HH:MM <pesan>`',
@@ -531,10 +498,6 @@ async function handleExtraCommand(message, content) {
   }
   if (lower === '!warselesai') {
     await handleWarCloseCommand(message);
-    return true;
-  }
-  if (lower === '!poll' || lower.startsWith('!poll ')) {
-    await handlePollCommand(message, content);
     return true;
   }
   return false;
