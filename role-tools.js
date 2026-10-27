@@ -1,23 +1,47 @@
-// role-tools.js — copot satu role dari SEMUA member yang punya role itu sekaligus.
+// role-tools.js — kelola role secara massal:
 //
-//   !copotsemua @role      (alias: !removeroleall @role)
+//   !copotsemua @role     (alias: !removeroleall) → copot role dari SEMUA member yang punya role itu
+//   !tambahsemua @role    (alias: !addroleall)    → kasih role ke SEMUA member yang belum punya (bot dilewati)
 //
 // Aman dipakai: khusus Administrator, ada konfirmasi sebelum jalan, role @everyone / role bot /
-// role yang posisinya di atas role bot otomatis ditolak, dan tidak bisa jalan dobel di server yang sama.
+// role yang posisinya di atas role bot otomatis ditolak, role berizin berbahaya gak boleh dikasih massal,
+// dan tidak bisa jalan dobel di server yang sama.
 
 const { PermissionsBitField } = require('discord.js');
 
 const CONFIRM_MS = 30 * 1000;
 const PROGRESS_EVERY = 25;
+const SECONDS_PER_MEMBER = 1; // perkiraan kasar, dibatasi rate limit Discord (~10 perubahan role per 10 detik)
 const running = new Set(); // guildId yang lagi diproses
 
 const NO_PING = { parse: [], repliedUser: false };
+
+// Role dengan izin ini gak boleh dikasih ke semua orang sekaligus
+const DANGEROUS = [
+  ['Administrator', PermissionsBitField.Flags.Administrator],
+  ['Manage Server', PermissionsBitField.Flags.ManageGuild],
+  ['Manage Roles', PermissionsBitField.Flags.ManageRoles],
+  ['Manage Channels', PermissionsBitField.Flags.ManageChannels],
+  ['Kick Members', PermissionsBitField.Flags.KickMembers],
+  ['Ban Members', PermissionsBitField.Flags.BanMembers],
+  ['Manage Messages', PermissionsBitField.Flags.ManageMessages],
+  ['Mention @everyone', PermissionsBitField.Flags.MentionEveryone],
+];
 
 function isAdmin(message) {
   return message.member?.permissions?.has(PermissionsBitField.Flags.Administrator) ?? false;
 }
 
-async function handleRemoveRoleAll(message) {
+function estimate(count) {
+  const secs = count * SECONDS_PER_MEMBER;
+  if (secs < 90) return `sekitar ${secs} detik`;
+  return `sekitar ${Math.ceil(secs / 60)} menit`;
+}
+
+/**
+ * mode: 'remove' (copot dari yang punya) atau 'add' (kasih ke yang belum punya)
+ */
+async function handleBulkRole(message, mode) {
   if (!message.guild) return;
 
   if (!isAdmin(message)) {
@@ -25,9 +49,15 @@ async function handleRemoveRoleAll(message) {
     return;
   }
 
+  const adding = mode === 'add';
+  const cmd = adding ? '!tambahsemua' : '!copotsemua';
   const role = message.mentions.roles?.first();
   if (!role) {
-    await message.reply('Format: `!copotsemua @role` — mention role yang mau dicopot dari semua membernya.');
+    await message.reply(
+      adding
+        ? `Format: \`${cmd} @role\` — mention role yang mau dikasih ke semua member.`
+        : `Format: \`${cmd} @role\` — mention role yang mau dicopot dari semua membernya.`
+    );
     return;
   }
 
@@ -36,11 +66,11 @@ async function handleRemoveRoleAll(message) {
 
   // --- Pengecekan keamanan ---
   if (role.id === guild.id) {
-    await message.reply('Role @everyone gak bisa dicopot.');
+    await message.reply(adding ? 'Role @everyone sudah otomatis dimiliki semua orang, gak perlu ditambah.' : 'Role @everyone gak bisa dicopot.');
     return;
   }
   if (role.managed) {
-    await message.reply(`Role **${role.name}** dikelola integrasi/bot lain, jadi gak bisa dicopot manual.`);
+    await message.reply(`Role **${role.name}** dikelola integrasi/bot lain, jadi gak bisa diatur manual.`);
     return;
   }
   if (!me?.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
@@ -51,12 +81,22 @@ async function handleRemoveRoleAll(message) {
     await message.reply(`Role **${role.name}** posisinya sejajar/di atas role bot. Naikkan role bot di atas **${role.name}** dulu di Server Settings → Roles.`);
     return;
   }
+  if (adding) {
+    const bad = DANGEROUS.filter(([, flag]) => role.permissions?.has(flag, false)).map(([name]) => name);
+    if (bad.length) {
+      await message.reply(
+        `Role **${role.name}** punya izin berbahaya (${bad.join(', ')}), jadi gak aku kasih massal ke semua member. ` +
+          'Kalau memang perlu, kasih manual satu-satu, atau cabut izin itu dari role-nya dulu.'
+      );
+      return;
+    }
+  }
   if (running.has(guild.id)) {
-    await message.reply('Masih ada proses copot role yang lagi jalan di server ini, tunggu sampai selesai yaa.');
+    await message.reply('Masih ada proses role massal yang lagi jalan di server ini, tunggu sampai selesai yaa.');
     return;
   }
 
-  // --- Ambil semua member yang punya role itu ---
+  // --- Ambil semua member ---
   await message.channel.sendTyping().catch(() => {});
   try {
     await guild.members.fetch();
@@ -66,15 +106,24 @@ async function handleRemoveRoleAll(message) {
     return;
   }
 
-  const targets = [...role.members.values()];
+  const targets = adding
+    ? [...guild.members.cache.values()].filter((m) => !m.user.bot && !m.roles.cache.has(role.id))
+    : [...role.members.values()];
+
   if (targets.length === 0) {
-    await message.reply({ content: `Gak ada member yang punya role **${role.name}**.`, allowedMentions: NO_PING });
+    await message.reply({
+      content: adding ? `Semua member sudah punya role **${role.name}**.` : `Gak ada member yang punya role **${role.name}**.`,
+      allowedMentions: NO_PING,
+    });
     return;
   }
 
   // --- Konfirmasi ---
+  const question = adding
+    ? `⚠️ Role **${role.name}** bakal dikasih ke **${targets.length} member** (bot dilewati). Perkiraan ${estimate(targets.length)}. Ini bisa membuka channel yang cuma bisa dilihat role itu.`
+    : `⚠️ Role **${role.name}** bakal dicopot dari **${targets.length} member**.`;
   await message.reply({
-    content: `⚠️ Role **${role.name}** bakal dicopot dari **${targets.length} member**. Ketik **ya** dalam 30 detik buat lanjut, atau **batal**.`,
+    content: `${question}\nKetik **ya** dalam 30 detik buat lanjut, atau **batal**.`,
     allowedMentions: NO_PING,
   });
 
@@ -88,19 +137,20 @@ async function handleRemoveRoleAll(message) {
     });
     answer = collected.first().content.trim().toLowerCase();
   } catch {
-    await message.channel.send('⏱️ Waktu konfirmasi habis, gak ada role yang dicopot.');
+    await message.channel.send(`⏱️ Waktu konfirmasi habis, gak ada role yang ${adding ? 'ditambah' : 'dicopot'}.`);
     return;
   }
 
   if (answer !== 'ya') {
-    await message.channel.send('Dibatalkan, gak ada role yang dicopot.');
+    await message.channel.send(`Dibatalkan, gak ada role yang ${adding ? 'ditambah' : 'dicopot'}.`);
     return;
   }
 
   // --- Eksekusi ---
   running.add(guild.id);
-  const reason = `Dicopot massal oleh ${message.author.tag}`;
-  const status = await message.channel.send(`⏳ Mencopot **${role.name}**... 0/${targets.length}`);
+  const reason = `${adding ? 'Ditambah' : 'Dicopot'} massal oleh ${message.author.tag}`;
+  const verb = adding ? 'Menambah' : 'Mencopot';
+  const status = await message.channel.send(`⏳ ${verb} **${role.name}**... 0/${targets.length}`);
   let ok = 0;
   const failed = [];
 
@@ -108,21 +158,24 @@ async function handleRemoveRoleAll(message) {
     for (let i = 0; i < targets.length; i++) {
       const member = targets[i];
       try {
-        await member.roles.remove(role, reason);
+        if (adding) await member.roles.add(role, reason);
+        else await member.roles.remove(role, reason);
         ok++;
       } catch (err) {
         failed.push(member.user.tag);
-        console.error(`Gagal copot ${role.name} dari ${member.user.tag}:`, err.message);
+        console.error(`Gagal ${adding ? 'tambah' : 'copot'} ${role.name} (${member.user.tag}):`, err.message);
       }
       if ((i + 1) % PROGRESS_EVERY === 0 && i + 1 < targets.length) {
-        await status.edit(`⏳ Mencopot **${role.name}**... ${i + 1}/${targets.length}`).catch(() => {});
+        await status.edit(`⏳ ${verb} **${role.name}**... ${i + 1}/${targets.length}`).catch(() => {});
       }
     }
   } finally {
     running.delete(guild.id);
   }
 
-  let summary = `✅ Selesai! Role **${role.name}** dicopot dari **${ok}** member.`;
+  let summary = adding
+    ? `✅ Selesai! Role **${role.name}** ditambahkan ke **${ok}** member.`
+    : `✅ Selesai! Role **${role.name}** dicopot dari **${ok}** member.`;
   if (failed.length) {
     const shown = failed.slice(0, 10).join(', ');
     summary += `\n⚠️ ${failed.length} gagal: ${shown}${failed.length > 10 ? ', dll.' : ''}`;
@@ -132,8 +185,14 @@ async function handleRemoveRoleAll(message) {
 
 async function handleRoleToolsCommand(message, content) {
   const lower = content.toLowerCase();
-  if (lower === '!copotsemua' || lower.startsWith('!copotsemua ') || lower === '!removeroleall' || lower.startsWith('!removeroleall ')) {
-    await handleRemoveRoleAll(message);
+  const is = (name) => lower === name || lower.startsWith(`${name} `);
+
+  if (is('!copotsemua') || is('!removeroleall')) {
+    await handleBulkRole(message, 'remove');
+    return true;
+  }
+  if (is('!tambahsemua') || is('!addroleall')) {
+    await handleBulkRole(message, 'add');
     return true;
   }
   return false;
