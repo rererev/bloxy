@@ -89,36 +89,6 @@
     ]
   },
   {
-    "keyword": "sayang bloxy, love bloxy, cinta bloxy, bot sayang",
-    "jawaban": [
-      "akhirnya ada yang sayang sama bot 😭🤍",
-      "bot juga sayang kalian, tapi lebih sayang reperned.",
-      "awww jangan bikin bot salting 😭",
-      "love received ❤️ bot menyimpan di database.",
-      "ciee mulai sayang sama bot wkwk."
-    ]
-  },
-  {
-    "keyword": "cape, capek, lelah, kecapean",
-    "jawaban": [
-      "kalau udah capek jangan dipaksain yaa, istirahat dulu 🤍",
-      "cape? rehat dulu sana 😭 ikan masih ada kok.",
-      "jangan dipaksain kalau badan udah capek, istirahat bentar love u.",
-      "istirahat duluu, farming bisa dilanjutin nanti.",
-      "kalau udah lelah mending rehat, jangan sampai badan ikut rungkad 😭"
-    ]
-  },
-  {
-    "keyword": "bot lucu, bloxy ganteng, bloxy keren, bot terbaik",
-    "jawaban": [
-      "akhirnya fakta mulai terungkap ",
-      "tolong jangan bikin bot besar kepala.",
-      "iya saya memang luar biasa 😌",
-      "pujian seperti ini yang membuat server tetap hidup 😭",
-      "makasih, screenshot dulu biar bisa dipajang."
-    ]
-  },
-  {
     "keyword": "bot jelek, bot bodoh, bot goblok, bot ampas",
     "jawaban": [
       "sakit hati bot ",
@@ -136,16 +106,6 @@
       "bot standby, kita ngobrol aja.",
       "nggak sendirian kok, satu server juga masih rame.",
       "sini duduk dulu, cerita aja kalau mau 🤍"
-    ]
-  },
-  {
-    "keyword": "ngantuk, ngantuk banget, mau tidur",
-    "jawaban": [
-      "udah ngantuk jangan dilawan 😭 tidur dulu sana.",
-      "ngantuk banget? waktunya bobok wkwk, ikan nggak bakal kabur kok.",
-      "tidur duluu 😭 besok lanjut mancing dengan energi baru.",
-      "jangan lawan ngantuk, nanti malah mancing sambil merem wkwk.",
-      "kalau mata udah berat mending tidur dulu yaa 🤍"
     ]
   },
   {
@@ -238,16 +198,6 @@
       "iya aku bot kenapa? kamu gk suka?."
     ]
   },
-  {
-    "keyword": "bot lucu, lucu bloxy, wkwk bloxy",
-    "jawaban": [
-      "akhirnya ada yang menghargai kerja keras saya 😭🙏",
-      "hehe makasih 😭 bot juga punya perasaan.",
-      "wkwkwk akhirnya bot dipuji 😭",
-      "jangan bikin bot salting dong 😭🙏",
-      "makasih yaa, besok bot makin rajin wkwk."
-    ]
-  },
 {
   "keyword": "sayang, aku sayang kamu, love you, i love you",
   "jawaban": [
@@ -256,16 +206,6 @@
     "akhirnya ada yang sayang sama bloxy",
     "aku simpan di database hati 🗿❤️",
     "jangan gitu, nanti aku error karena kebanyakan cinta"
-  ]
-},
-{
-  "keyword": "kangen, aku kangen, gue kangen, kangen kamu",
-  "jawaban": [
-    "cieee kangen 😭",
-    "aku juga kangen kalau server sepi",
-    "baru juga pergi sebentar udah kangen aja 👀",
-    "sini balik, server masih nungguin kamu ",
-    "kangen bot? bahaya nih sudah mulai bucin "
   ]
 },
 {
