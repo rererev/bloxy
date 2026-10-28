@@ -99,16 +99,6 @@
     ]
   },
   {
-    "keyword": "temenin, temani aku, sendirian",
-    "jawaban": [
-      "sini bot temenin 🤝 jangan sendirian.",
-      "tenang, ada bot di sini 😭",
-      "bot standby, kita ngobrol aja.",
-      "nggak sendirian kok, satu server juga masih rame.",
-      "sini duduk dulu, cerita aja kalau mau 🤍"
-    ]
-  },
-  {
     "keyword": "belum tidur, masih bangun, begadang",
     "jawaban": [
       "belum tidur juga?? 😭 jangan lupa badan butuh istirahat.",
@@ -179,19 +169,9 @@
     ]
   },
   {
-    "keyword": "dapat forgotten, dapet forgotten",
-    "jawaban": [
-      "FORGOTTENNN 😭🔥 gila hoki banget.",
-      "waduh forgotten 😭🔥 RNG lagi sayang nih.",
-      "GG dapet forgotten 🎣🔥 selamat yaa!",
-      "FORGOTTEN?? 😭 ini baru namanya hoki.",
-      "akhirnya forgotten mampir juga 😭 simpan screenshotnya buat bukti sejarah."
-    ]
-  },
-  {
     "keyword": "kamu bot, ini bot",
     "jawaban": [
-      "iya aku bot  tapi bot yang peduli sama nasib ikan kalian.",
+      "iya aku bot  tapi bot yang peduli sama kalian.",
       "ketahuan deh 😭 iya aku bot.",
       "iyaaa bot wkwk, tapi lumayan kan buat nemenin.",
       "aku bot, bukan NPC biasa 😭🙏",
@@ -201,7 +181,7 @@
 {
   "keyword": "sayang, aku sayang kamu, love you, i love you",
   "jawaban": [
-    "waduh jangan bikin bot baper ❤️",
+    "waduh jangan bikin bloxy baper ❤️",
     "love you too, jadi kapan kita jalan",
     "akhirnya ada yang sayang sama bloxy",
     "aku simpan di database hati 🗿❤️",
@@ -288,26 +268,6 @@
       "adminnya ada kok, coba tag <@954296542406246400> kalau butuh bantuan.",
       "manggil admin yaa 😭 bisa langsung tag <@462346945441038337>.",
       "admin sedang bertugas wkwk, kalau perlu langsung hubungi <@462346945441038337>."
-    ]
-  },
-  {
-    "keyword": "pamer, lihat ikan saya, hasil saya, hasil mancing",
-    "jawaban": [
-      "oke pamer, kami sudah melihat 😭",
-      "izin iri dulu 5 menit",
-      "bro really said 'lihat hasil saya' 💀",
-      "bagus bang, sekarang waktunya yang lain nangis",
-      "pamer diterima. silakan kembali memancing 🫡"
-    ]
-  },
-  {
-    "keyword": "min bantu, butuh bantuan",
-    "jawaban": [
-      "iyaa coba jelasin dulu masalahnya, kalau perlu nanti dibantu <@1523235734474068101>.",
-      "siapp, jelasin masalahnya dulu yaa 🤍",
-      "butuh bantuan? coba jelasin detailnya, nanti kita arahkan.",
-      "tenang duluu 😭 ceritain masalahnya biar bisa dibantu.",
-      "kalau perlu admin umum bisa tag <@1523235734474068101> yaa."
     ]
   },
   {
