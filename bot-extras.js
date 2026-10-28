@@ -112,45 +112,14 @@ const WAR_FILE = 'war-data.json';
 const WAR_SERVER_SIZE = Math.max(1, parseInt(process.env.WAR_SERVER_SIZE || '15', 10) || 15);
 let warState = loadJson(WAR_FILE, {});
 
-// Tiap peserta menyimpan nomor servernya sendiri, jadi bisa dipindah manual dan tidak bergeser
-// kalau ada peserta lain yang dihapus. Data lama (belum punya server) dibagi urut per 15 orang.
+// Tiap peserta menyimpan nomor SLOT-nya sendiri (field `server` di data), jadi bisa dipindah manual dan
+// tidak ikut bergeser slot kalau ada peserta lain yang dihapus. Data lama dibagi urut per WAR_SERVER_SIZE orang.
 function assignMissingServers(war) {
   war.members.forEach((m, i) => {
     if (!m.server) m.server = Math.floor(i / WAR_SERVER_SIZE) + 1;
   });
 }
 for (const war of Object.values(warState)) assignMissingServers(war);
-
-// ===== Private server (PS) =====
-// Ada WAR_PS_COUNT private server (default 6, nomor 1..6). Server 1 (ganjil) pakai PS bernomor ganjil
-// (1, 3, 5), Server 2 (genap) pakai PS bernomor genap (2, 4, 6); Server 3 balik ke ganjil, dst.
-// Tiap peserta dapat satu nomor PS, dibagi rata di antara PS milik servernya, dan tersimpan (gak bergeser
-// kalau ada peserta lain dihapus). Isi WAR_PS_COUNT=0 buat mematikan fitur ini.
-const WAR_PS_COUNT = Math.max(0, parseInt(process.env.WAR_PS_COUNT || '6', 10) || 0);
-
-function psForServer(server) {
-  const list = [];
-  for (let n = server % 2 === 1 ? 1 : 2; n <= WAR_PS_COUNT; n += 2) list.push(n);
-  return list;
-}
-
-// PS dengan peserta paling sedikit di server itu (seri -> nomor terkecil). `self` gak ikut dihitung.
-function pickPs(war, server, self) {
-  const list = psForServer(server);
-  if (list.length === 0) return null;
-  const counts = new Map(list.map((n) => [n, 0]));
-  for (const m of war.members) {
-    if (m !== self && m.server === server && counts.has(m.ps)) counts.set(m.ps, counts.get(m.ps) + 1);
-  }
-  let best = list[0];
-  for (const n of list) if (counts.get(n) < counts.get(best)) best = n;
-  return best;
-}
-
-// Data lama (belum punya PS) dibagikan sesuai urutan daftar
-for (const war of Object.values(warState)) {
-  for (const m of war.members) if (!m.ps) m.ps = pickPs(war, m.server, m);
-}
 
 const serverCount = (war, server) => war.members.filter((m) => m.server === server).length;
 
@@ -160,6 +129,17 @@ function nextFreeServer(war) {
   }
 }
 const saveWar = () => saveJson(WAR_FILE, warState);
+
+// Nomor peserta DI DALAM slotnya (1..WAR_SERVER_SIZE), urut sesuai pendaftaran.
+function slotNumber(war, idx) {
+  const slot = war.members[idx].server;
+  let n = 0;
+  for (let i = 0; i <= idx; i++) if (war.members[i].server === slot) n++;
+  return n;
+}
+
+// Referensi peserta: "1-5" (atau "1.5" / "1:5") = Slot 1 nomor 5 → index di war.members, atau -1.
+const SLOT_REF = /^(\d+)\s*[-.:]\s*(\d+)$/;
 
 const JOIN_REGEX = /^\s*ikut\b/i;
 const LEAVE_REGEX = /^\s*batal\b/i;
@@ -197,7 +177,7 @@ async function handleWarBossCommand(message, content) {
         .filter(Boolean)
         .join('\n')
     )
-    .setFooter({ text: 'Admin: !warlist • !warhapus <nomor|@user|semua> • !warselesai' });
+    .setFooter({ text: 'Admin: !warlist • !warhapus <slot-nomor|@user|semua> • !warselesai' });
 
   await message.channel.send({ embeds: [embed] });
 }
@@ -218,16 +198,14 @@ async function handleWarJoin(message) {
 
   if (isJoin) {
     if (idx !== -1) {
-      await message.reply({ content: `${name}, kamu udah kecatat di nomor ${idx + 1} (Server ${war.members[idx].server}) 👍`, allowedMentions: NO_PING });
+      await message.reply({ content: `${name}, kamu udah kecatat di Slot ${war.members[idx].server} nomor ${slotNumber(war, idx)} 👍`, allowedMentions: NO_PING });
       return true;
     }
-    const member = { userId, username: name, server: nextFreeServer(war), joinedAt: new Date().toISOString() };
-    war.members.push(member);
-    member.ps = pickPs(war, member.server, member);
+    war.members.push({ userId, username: name, server: nextFreeServer(war), joinedAt: new Date().toISOString() });
     saveWar();
     const reacted = await message.react('✅').then(() => true).catch(() => false);
     if (!reacted) {
-      await message.reply({ content: `✅ ${name} kecatat (nomor ${war.members.length}).`, allowedMentions: NO_PING });
+      await message.reply({ content: `✅ ${name} kecatat (Slot ${war.members[war.members.length - 1].server} nomor ${slotNumber(war, war.members.length - 1)}).`, allowedMentions: NO_PING });
     }
     return true;
   }
@@ -240,37 +218,23 @@ async function handleWarJoin(message) {
   return true;
 }
 
-// Daftar ditampilkan per server. Nomor = nomor urut pendaftaran (tidak berubah walau dipindah server),
-// dipakai untuk !warhapus / !warpindah / !wartukar.
+// Daftar ditampilkan per SLOT. Nomor = nomor urut di dalam slot (Slot 1: 1–20, Slot 2: 1–20, dst).
+// Perintah admin pakai format <slot>-<nomor>, misalnya "1-5" = Slot 1 nomor 5.
 function formatWarList(war) {
   if (!war.members.length) return '_Belum ada yang ikut._';
-  const line = ({ m, n }) => `${n}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`;
-
   const groups = new Map();
-  war.members.forEach((m, i) => {
+  war.members.forEach((m) => {
     const s = m.server || 1;
     if (!groups.has(s)) groups.set(s, []);
-    groups.get(s).push({ m, n: i + 1 });
+    groups.get(s).push(m);
   });
-
   return [...groups.keys()]
     .sort((a, b) => a - b)
     .map((s) => {
-      const items = groups.get(s);
-      const full = items.length >= WAR_SERVER_SIZE ? ' ✅ penuh' : '';
-      const psList = psForServer(s);
-      const head = `**Server ${s}** (${items.length}/${WAR_SERVER_SIZE}${full})${psList.length ? ` — Private Server ${psList.join(', ')}` : ''}`;
-      if (psList.length === 0) return `${head}\n${items.map(line).join('\n')}`;
-
-      const byPs = new Map(psList.map((n) => [n, []]));
-      items.forEach((it) => byPs.get(byPs.has(it.m.ps) ? it.m.ps : psList[0]).push(it));
-      const sub = psList
-        .map((n) => {
-          const g = byPs.get(n);
-          return `▸ **PS ${n}** (${g.length})${g.length ? `\n${g.map(line).join('\n')}` : ''}`;
-        })
-        .join('\n');
-      return `${head}\n${sub}`;
+      const members = groups.get(s);
+      const full = members.length >= WAR_SERVER_SIZE ? ' ✅ penuh' : '';
+      const lines = members.map((m, i) => `${i + 1}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`);
+      return `**Slot ${s}** (${members.length}/${WAR_SERVER_SIZE}${full})\n${lines.join('\n')}`;
     })
     .join('\n\n');
 }
@@ -330,11 +294,11 @@ async function handleWarRemoveCommand(message, content) {
   if (mentioned) {
     const i = war.members.findIndex((m) => m.userId === mentioned.id);
     if (i !== -1) [removed] = war.members.splice(i, 1);
-  } else if (/^\d+$/.test(arg)) {
-    const i = parseInt(arg, 10) - 1;
-    if (i >= 0 && i < war.members.length) [removed] = war.members.splice(i, 1);
+  } else if (SLOT_REF.test(arg)) {
+    const i = findMember(war, arg, null);
+    if (i !== -1) [removed] = war.members.splice(i, 1);
   } else {
-    await message.reply('Format: `!warhapus <nomor>` / `!warhapus @user` / `!warhapus semua`');
+    await message.reply('Format: `!warhapus <slot-nomor>` (contoh `1-5` = Slot 1 nomor 5) / `!warhapus @user` / `!warhapus semua`');
     return;
   }
 
@@ -348,14 +312,18 @@ async function handleWarRemoveCommand(message, content) {
 
 function findMember(war, token, mentioned) {
   if (mentioned) return war.members.findIndex((m) => m.userId === mentioned.id);
-  if (/^\d+$/.test(token || '')) {
-    const i = parseInt(token, 10) - 1;
-    return i >= 0 && i < war.members.length ? i : -1;
+  const ref = (token || '').match(SLOT_REF);
+  if (!ref) return -1;
+  const slot = parseInt(ref[1], 10);
+  const nth = parseInt(ref[2], 10);
+  let seen = 0;
+  for (let i = 0; i < war.members.length; i++) {
+    if (war.members[i].server === slot && ++seen === nth) return i;
   }
   return -1;
 }
 
-// !warpindah <nomor|@user> <server>
+// !warpindah <slot-nomor|@user> <slot>
 async function handleWarMoveCommand(message, content) {
   if (!isAdmin(message)) {
     await message.reply('Command ini cuma buat Administrator yaa 🙏');
@@ -374,7 +342,7 @@ async function handleWarMoveCommand(message, content) {
   const server = /^\d+$/.test(target || '') ? parseInt(target, 10) : 0;
 
   if (server < 1 || server > 99) {
-    await message.reply('Format: `!warpindah <nomor> <server>` atau `!warpindah @user <server>` — contoh: `!warpindah 5 2`');
+    await message.reply('Format: `!warpindah <slot-nomor> <slot>` atau `!warpindah @user <slot>` — contoh: `!warpindah 1-5 2` (peserta Slot 1 nomor 5 dipindah ke Slot 2)');
     return;
   }
 
@@ -386,22 +354,21 @@ async function handleWarMoveCommand(message, content) {
 
   const m = war.members[idx];
   if (m.server === server) {
-    await message.reply({ content: `${m.username} udah ada di Server ${server}.`, allowedMentions: NO_PING });
+    await message.reply({ content: `${m.username} udah ada di Slot ${server}.`, allowedMentions: NO_PING });
     return;
   }
   if (serverCount(war, server) >= WAR_SERVER_SIZE) {
-    await message.reply(`Server ${server} udah penuh (${WAR_SERVER_SIZE}/${WAR_SERVER_SIZE}). Pakai \`!wartukar <nomor> <nomor>\` buat nuker posisi dua peserta, atau pindahin salah satu peserta server itu dulu.`);
+    await message.reply(`Slot ${server} udah penuh (${WAR_SERVER_SIZE}/${WAR_SERVER_SIZE}). Pakai \`!wartukar <slot-nomor> <slot-nomor>\` buat nuker posisi dua peserta, atau pindahin salah satu peserta slot itu dulu.`);
     return;
   }
 
   const from = m.server;
   m.server = server;
-  m.ps = pickPs(war, server, m);
   saveWar();
-  await message.reply({ content: `✅ ${m.username} dipindah dari Server ${from} ke Server ${server}${m.ps ? ` (PS ${m.ps})` : ''}.`, allowedMentions: NO_PING });
+  await message.reply({ content: `✅ ${m.username} dipindah dari Slot ${from} ke Slot ${server}.`, allowedMentions: NO_PING });
 }
 
-// !wartukar <nomor> <nomor> — tukar server dua peserta (berguna kalau dua-duanya sudah penuh)
+// !wartukar <slot-nomor> <slot-nomor> — tukar slot dua peserta (berguna kalau dua-duanya sudah penuh)
 async function handleWarSwapCommand(message, content) {
   if (!isAdmin(message)) {
     await message.reply('Command ini cuma buat Administrator yaa 🙏');
@@ -417,18 +384,16 @@ async function handleWarSwapCommand(message, content) {
   const ia = findMember(war, a, null);
   const ib = findMember(war, b, null);
   if (ia === -1 || ib === -1 || ia === ib) {
-    await message.reply('Format: `!wartukar <nomor> <nomor>` — contoh: `!wartukar 3 20`. Cek nomornya pakai `!warlist`.');
+    await message.reply('Format: `!wartukar <slot-nomor> <slot-nomor>` — contoh: `!wartukar 1-3 2-7`. Cek nomornya pakai `!warlist`.');
     return;
   }
 
   const ma = war.members[ia];
   const mb = war.members[ib];
   [ma.server, mb.server] = [mb.server, ma.server];
-  ma.ps = pickPs(war, ma.server, ma);
-  mb.ps = pickPs(war, mb.server, mb);
   saveWar();
   await message.reply({
-    content: `🔁 ${ma.username} → Server ${ma.server}${ma.ps ? ` (PS ${ma.ps})` : ''}, ${mb.username} → Server ${mb.server}${mb.ps ? ` (PS ${mb.ps})` : ''}.`,
+    content: `🔁 ${ma.username} → Slot ${ma.server}, ${mb.username} → Slot ${mb.server}.`,
     allowedMentions: NO_PING,
   });
 }
@@ -476,9 +441,9 @@ async function handleHelpCommand(message) {
         name: '⚔️ War boss (Admin)',
         value: [
           '`!war boss [keterangan]` — buka pendaftaran di channel ini',
-          '`!warhapus <nomor|@user|semua>` — hapus peserta dari daftar',
-          '`!warpindah <nomor|@user> <server>` — pindahin peserta ke server tertentu',
-          '`!wartukar <nomor> <nomor>` — tukar server dua peserta',
+          '`!warhapus <slot-nomor|@user|semua>` — hapus peserta (contoh `1-5` = Slot 1 nomor 5)',
+          '`!warpindah <slot-nomor|@user> <slot>` — pindahin peserta ke slot lain',
+          '`!wartukar <slot-nomor> <slot-nomor>` — tukar slot dua peserta',
           '`!warselesai` — tutup pendaftaran + tampilkan daftar akhir',
         ].join('\n'),
       },
