@@ -667,21 +667,17 @@ Aturan PENTING:
 - Kalau gak yakin atau butuh info spesifik yang gak ada di atas (misal status order pribadi), jujur bilang gak tau/saranin tanya admin/buat ticket — jangan ngarang.
 - Jawaban singkat aja, 1-3 kalimat, jangan bertele-tele.`;
 
-async function askGroqAI(faqData, memoryData, userQuestion) {
-  if (!AI_FALLBACK_ENABLED) return null;
+// Budget token jawaban AI. Model "openai/gpt-oss-*" itu model REASONING: dia "mikir" dulu dan
+// token mikirnya ikut kehitung ke batas ini. Kalau batasnya terlalu kecil, token habis sebelum
+// sempat nulis jawaban → isi jawaban kosong → bot jadi diam. Makanya default-nya dibesarkan.
+const GROQ_MAX_TOKENS = parseInt(process.env.GROQ_MAX_TOKENS || '1200', 10);
+// Balasan kalau AI gagal jawab padahal bot jelas lagi dipanggil (biar gak diam aja).
+const AI_FAIL_REPLY = process.env.AI_FAIL_REPLY || 'Duh, otakku lagi nge-lag bentar 😅 coba tanya lagi yaa';
 
-  const faqContext = buildFaqContext(faqData);
-  const memoryContext = buildMemoryContext(memoryData);
-  const fullContext = memoryContext
-    ? `${faqContext}\n\nInfo tambahan yang disimpan admin:\n${memoryContext}`
-    : faqContext;
-
-  const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace('{FAQ_CONTEXT}', fullContext).replace('{EMOJI_LIST}', EMOJI_LIST_FOR_AI);
-
+async function callGroqOnce(systemPrompt, userQuestion, maxTokens) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000); // 20 detik timeout
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15 detik timeout
-
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -694,27 +690,66 @@ async function askGroqAI(faqData, memoryData, userQuestion) {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userQuestion },
         ],
-        max_tokens: 300,
+        max_completion_tokens: maxTokens,
         temperature: 0.7,
       }),
       signal: controller.signal,
     });
 
-    clearTimeout(timeout);
-
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
-      console.error(`Groq API error (${response.status}):`, errText);
-      return null;
+      const retryAfter = parseFloat(response.headers?.get?.('retry-after')) || 0;
+      return { ok: false, status: response.status, retryAfter, errText };
     }
 
     const data = await response.json();
-    const reply = data?.choices?.[0]?.message?.content?.trim();
-    return reply || null;
+    const choice = data?.choices?.[0];
+    const reply = choice?.message?.content?.trim();
+    if (!reply) {
+      return { ok: false, status: 200, empty: true, finish: choice?.finish_reason, usage: data?.usage };
+    }
+    return { ok: true, reply };
   } catch (err) {
-    console.error('Gagal panggil Groq AI:', err.message || err);
-    return null;
+    return { ok: false, status: 0, error: err?.name === 'AbortError' ? 'timeout (>20 detik)' : err?.message || String(err) };
+  } finally {
+    clearTimeout(timeout);
   }
+}
+
+async function askGroqAI(faqData, memoryData, userQuestion) {
+  if (!AI_FALLBACK_ENABLED) return null;
+
+  const faqContext = buildFaqContext(faqData);
+  const memoryContext = buildMemoryContext(memoryData);
+  const fullContext = memoryContext
+    ? `${faqContext}\n\nInfo tambahan yang disimpan admin:\n${memoryContext}`
+    : faqContext;
+
+  const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace('{FAQ_CONTEXT}', fullContext).replace('{EMOJI_LIST}', EMOJI_LIST_FOR_AI);
+
+  let maxTokens = GROQ_MAX_TOKENS;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const r = await callGroqOnce(systemPrompt, userQuestion, maxTokens);
+    if (r.ok) return r.reply;
+
+    // Catat penyebab yang jelas di log Railway supaya gampang dilacak
+    if (r.empty) {
+      console.error(`[AI] Percobaan ${attempt}: jawaban kosong (finish_reason=${r.finish}, usage=${JSON.stringify(r.usage || {})}). Kalau finish_reason=length, token habis buat "mikir" — naikkan GROQ_MAX_TOKENS.`);
+    } else if (r.status) {
+      console.error(`[AI] Percobaan ${attempt}: Groq error ${r.status}: ${String(r.errText || '').slice(0, 300)}`);
+    } else {
+      console.error(`[AI] Percobaan ${attempt}: gagal panggil Groq: ${r.error}`);
+    }
+
+    if (attempt === 2) break;
+    // Error permanen (key salah, request salah) gak usah diulang
+    if (r.status >= 400 && r.status < 500 && r.status !== 429) break;
+
+    if (r.empty && r.finish === 'length') maxTokens = Math.min(maxTokens * 2, 4000);
+    const waitMs = r.status === 429 ? Math.min((r.retryAfter || 2) * 1000, 6000) : 1000;
+    await new Promise((res) => setTimeout(res, waitMs));
+  }
+  return null;
 }
 
 // ====== ANNOUNCEMENT: !umumin <teks> (khusus Administrator) ======
@@ -1816,9 +1851,13 @@ client.on('messageCreate', async (message) => {
 
     // Kalau user ini masih kena cooldown, bot diam saja (gak spam balasan) —
     // dicek di awal biar berlaku baik untuk jawaban keyword maupun AI fallback.
-    if (isOnCooldown(message.author.id)) return;
+    if (isOnCooldown(message.author.id)) {
+      if (message.mentions.has(client.user.id)) message.react('⏳').catch(() => {});
+      return;
+    }
 
     let replyText = null;
+    let isFailReply = false;
 
     if (matched) {
       // Ada keyword yang cocok → pakai jawaban FAQ (cepat & pasti akurat).
@@ -1855,7 +1894,13 @@ client.on('messageCreate', async (message) => {
             replyText = playerAnswer;
           } else {
             const memoryData = loadMemoryData();
+            await message.channel.sendTyping().catch(() => {});
             replyText = await askGroqAI(faqData, memoryData, cleanedQuestion);
+            // Bot jelas lagi dipanggil tapi AI gagal → jangan diam, kasih tahu.
+            if (!replyText && isDirectedToBot) {
+              replyText = AI_FAIL_REPLY;
+              isFailReply = true;
+            }
           }
         }
       }
@@ -1864,8 +1909,9 @@ client.on('messageCreate', async (message) => {
     // Kalau tetap gak ada jawaban (baik dari FAQ maupun AI gagal/nonaktif), bot diam saja.
     if (!replyText) return;
 
+    if (replyText.length > 1990) replyText = `${replyText.slice(0, 1987)}...`; // batas pesan Discord 2000 karakter
     await message.reply(replyText);
-    markReplied(message.author.id);
+    if (!isFailReply) markReplied(message.author.id); // balasan gagal gak bikin kena cooldown, jadi bisa langsung coba lagi
   } catch (err) {
     console.error('Error saat memproses pertanyaan:', err);
   }
