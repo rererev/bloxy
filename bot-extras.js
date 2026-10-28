@@ -121,6 +121,37 @@ function assignMissingServers(war) {
 }
 for (const war of Object.values(warState)) assignMissingServers(war);
 
+// ===== Private server (PS) =====
+// Ada WAR_PS_COUNT private server (default 6, nomor 1..6). Server 1 (ganjil) pakai PS bernomor ganjil
+// (1, 3, 5), Server 2 (genap) pakai PS bernomor genap (2, 4, 6); Server 3 balik ke ganjil, dst.
+// Tiap peserta dapat satu nomor PS, dibagi rata di antara PS milik servernya, dan tersimpan (gak bergeser
+// kalau ada peserta lain dihapus). Isi WAR_PS_COUNT=0 buat mematikan fitur ini.
+const WAR_PS_COUNT = Math.max(0, parseInt(process.env.WAR_PS_COUNT || '6', 10) || 0);
+
+function psForServer(server) {
+  const list = [];
+  for (let n = server % 2 === 1 ? 1 : 2; n <= WAR_PS_COUNT; n += 2) list.push(n);
+  return list;
+}
+
+// PS dengan peserta paling sedikit di server itu (seri -> nomor terkecil). `self` gak ikut dihitung.
+function pickPs(war, server, self) {
+  const list = psForServer(server);
+  if (list.length === 0) return null;
+  const counts = new Map(list.map((n) => [n, 0]));
+  for (const m of war.members) {
+    if (m !== self && m.server === server && counts.has(m.ps)) counts.set(m.ps, counts.get(m.ps) + 1);
+  }
+  let best = list[0];
+  for (const n of list) if (counts.get(n) < counts.get(best)) best = n;
+  return best;
+}
+
+// Data lama (belum punya PS) dibagikan sesuai urutan daftar
+for (const war of Object.values(warState)) {
+  for (const m of war.members) if (!m.ps) m.ps = pickPs(war, m.server, m);
+}
+
 const serverCount = (war, server) => war.members.filter((m) => m.server === server).length;
 
 function nextFreeServer(war) {
@@ -190,7 +221,9 @@ async function handleWarJoin(message) {
       await message.reply({ content: `${name}, kamu udah kecatat di nomor ${idx + 1} (Server ${war.members[idx].server}) 👍`, allowedMentions: NO_PING });
       return true;
     }
-    war.members.push({ userId, username: name, server: nextFreeServer(war), joinedAt: new Date().toISOString() });
+    const member = { userId, username: name, server: nextFreeServer(war), joinedAt: new Date().toISOString() };
+    war.members.push(member);
+    member.ps = pickPs(war, member.server, member);
     saveWar();
     const reacted = await message.react('✅').then(() => true).catch(() => false);
     if (!reacted) {
@@ -211,18 +244,33 @@ async function handleWarJoin(message) {
 // dipakai untuk !warhapus / !warpindah / !wartukar.
 function formatWarList(war) {
   if (!war.members.length) return '_Belum ada yang ikut._';
+  const line = ({ m, n }) => `${n}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`;
+
   const groups = new Map();
   war.members.forEach((m, i) => {
     const s = m.server || 1;
     if (!groups.has(s)) groups.set(s, []);
-    groups.get(s).push(`${i + 1}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`);
+    groups.get(s).push({ m, n: i + 1 });
   });
+
   return [...groups.keys()]
     .sort((a, b) => a - b)
     .map((s) => {
-      const lines = groups.get(s);
-      const full = lines.length >= WAR_SERVER_SIZE ? ' ✅ penuh' : '';
-      return `**Server ${s}** (${lines.length}/${WAR_SERVER_SIZE}${full})\n${lines.join('\n')}`;
+      const items = groups.get(s);
+      const full = items.length >= WAR_SERVER_SIZE ? ' ✅ penuh' : '';
+      const psList = psForServer(s);
+      const head = `**Server ${s}** (${items.length}/${WAR_SERVER_SIZE}${full})${psList.length ? ` — Private Server ${psList.join(', ')}` : ''}`;
+      if (psList.length === 0) return `${head}\n${items.map(line).join('\n')}`;
+
+      const byPs = new Map(psList.map((n) => [n, []]));
+      items.forEach((it) => byPs.get(byPs.has(it.m.ps) ? it.m.ps : psList[0]).push(it));
+      const sub = psList
+        .map((n) => {
+          const g = byPs.get(n);
+          return `▸ **PS ${n}** (${g.length})${g.length ? `\n${g.map(line).join('\n')}` : ''}`;
+        })
+        .join('\n');
+      return `${head}\n${sub}`;
     })
     .join('\n\n');
 }
@@ -348,8 +396,9 @@ async function handleWarMoveCommand(message, content) {
 
   const from = m.server;
   m.server = server;
+  m.ps = pickPs(war, server, m);
   saveWar();
-  await message.reply({ content: `✅ ${m.username} dipindah dari Server ${from} ke Server ${server}.`, allowedMentions: NO_PING });
+  await message.reply({ content: `✅ ${m.username} dipindah dari Server ${from} ke Server ${server}${m.ps ? ` (PS ${m.ps})` : ''}.`, allowedMentions: NO_PING });
 }
 
 // !wartukar <nomor> <nomor> — tukar server dua peserta (berguna kalau dua-duanya sudah penuh)
@@ -375,9 +424,11 @@ async function handleWarSwapCommand(message, content) {
   const ma = war.members[ia];
   const mb = war.members[ib];
   [ma.server, mb.server] = [mb.server, ma.server];
+  ma.ps = pickPs(war, ma.server, ma);
+  mb.ps = pickPs(war, mb.server, mb);
   saveWar();
   await message.reply({
-    content: `🔁 ${ma.username} → Server ${ma.server}, ${mb.username} → Server ${mb.server}.`,
+    content: `🔁 ${ma.username} → Server ${ma.server}${ma.ps ? ` (PS ${ma.ps})` : ''}, ${mb.username} → Server ${mb.server}${mb.ps ? ` (PS ${mb.ps})` : ''}.`,
     allowedMentions: NO_PING,
   });
 }
