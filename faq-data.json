@@ -33,16 +33,6 @@
   ]
 },
   {
-    "keyword": "good morning, gm, pagi, selamat pagi, met pagi",
-    "jawaban": [
-      "good morninggg 🌤️🤍 semoga hari ini mood bagus dan RNG baik.",
-      "pagiii 😭 semoga hari ini hoki gede yaa 🎣✨",
-      "morningg, jangan lupa makan yaa. semoga urusan hari ini lancar.",
-      "selamat pagi semuanya 🤍 semoga hari ini nggak zonk wkwk.",
-      "pagi pagi 😆 semoga sekali cast langsung dapet yang dicari."
-    ]
-  },
-  {
     "keyword": "prediksi, ramal rng, cek rng, rng saya, ramal ikan",
     "jawaban": [
       "prediksi saya: 73% stone, 20% sandy, 7% Ghost.",
@@ -79,16 +69,6 @@
     ]
   },
   {
-    "keyword": "good afternoon, siang, selamat siang, met siang",
-    "jawaban": [
-      "selamat sianggg ☀️ jangan lupa makan yaa.",
-      "sianggg 😭 jangan sampai lupa makan gara-gara farming.",
-      "met siang semuanya 🤍 semoga siangnya lancar.",
-      "good afternoonn ☀️ waktunya makan dulu sebelum lanjut mancing.",
-      "siang siang 😆 jangan cuma makan ikan di FishIt yaa."
-    ]
-  },
-  {
     "keyword": "bot ngapain, bloxy tidur, bloxy ngapain",
     "jawaban": [
       "lagi mantau kalian yang rungkad 😭",
@@ -99,16 +79,6 @@
     ]
   },
   {
-    "keyword": "selamat malam, malam, good night, gn, met malam",
-    "jawaban": [
-      "selamat malammm 🌙🤍 jangan begadang terus yaa, istirahat yang cukup.",
-      "malammm 😭 jangan lupa istirahat, besok lanjut perang sama RNG lagi.",
-      "good nightt  semoga besok bangun lebih fresh dan hoki ",
-      "met malam yaa 🤍 waktunya istirahat dulu",
-      "malemmm, jangan sampai ikan dapet tapi jam tidur berantakan 😭"
-    ]
-  },
-  {
     "keyword": "bot hidup, bot mati, bloxy masih hidup, bot online",
     "jawaban": [
       "masih hidup dong 😭 belum waktunya shutdown.",
@@ -116,36 +86,6 @@
       "online terus, beda sama harapan kalian terhadap RNG 😭",
       "masih aktif dan siap menyaksikan penderitaan kalian.",
       "bot hidup, RNG kalian yang perlu diperiksa."
-    ]
-  },
-  {
-    "keyword": "sayang bloxy, love bloxy, cinta bloxy, bot sayang",
-    "jawaban": [
-      "akhirnya ada yang sayang sama bot 😭🤍",
-      "bot juga sayang kalian, tapi lebih sayang reperned.",
-      "awww jangan bikin bot salting 😭",
-      "love received ❤️ bot menyimpan di database.",
-      "ciee mulai sayang sama bot wkwk."
-    ]
-  },
-  {
-    "keyword": "cape, capek, lelah, kecapean",
-    "jawaban": [
-      "kalau udah capek jangan dipaksain yaa, istirahat dulu 🤍",
-      "cape? rehat dulu sana 😭 ikan masih ada kok.",
-      "jangan dipaksain kalau badan udah capek, istirahat bentar love u.",
-      "istirahat duluu, farming bisa dilanjutin nanti.",
-      "kalau udah lelah mending rehat, jangan sampai badan ikut rungkad 😭"
-    ]
-  },
-  {
-    "keyword": "bot lucu, bloxy ganteng, bloxy keren, bot terbaik",
-    "jawaban": [
-      "akhirnya fakta mulai terungkap ",
-      "tolong jangan bikin bot besar kepala.",
-      "iya saya memang luar biasa 😌",
-      "pujian seperti ini yang membuat server tetap hidup 😭",
-      "makasih, screenshot dulu biar bisa dipajang."
     ]
   },
   {
@@ -166,16 +106,6 @@
       "bot standby, kita ngobrol aja.",
       "nggak sendirian kok, satu server juga masih rame.",
       "sini duduk dulu, cerita aja kalau mau 🤍"
-    ]
-  },
-  {
-    "keyword": "ngantuk, ngantuk banget, mau tidur",
-    "jawaban": [
-      "udah ngantuk jangan dilawan 😭 tidur dulu sana.",
-      "ngantuk banget? waktunya bobok wkwk, ikan nggak bakal kabur kok.",
-      "tidur duluu 😭 besok lanjut mancing dengan energi baru.",
-      "jangan lawan ngantuk, nanti malah mancing sambil merem wkwk.",
-      "kalau mata udah berat mending tidur dulu yaa 🤍"
     ]
   },
   {
@@ -249,16 +179,6 @@
     ]
   },
   {
-    "keyword": "thanks, thank you, makasih, terima kasih, tq",
-    "jawaban": [
-      "iyaa sama-sama 🤍 senang bisa bantu.",
-      "santaaaaii 😆 sama-sama yaa.",
-      "sama-samaaa, semoga membantu 🤍",
-      "no problemmm 😭🤝",
-      "hehe sama-sama, semoga urusannya lancar yaa."
-    ]
-  },
-  {
     "keyword": "dapat forgotten, dapet forgotten",
     "jawaban": [
       "FORGOTTENNN 😭🔥 gila hoki banget.",
@@ -266,16 +186,6 @@
       "GG dapet forgotten 🎣🔥 selamat yaa!",
       "FORGOTTEN?? 😭 ini baru namanya hoki.",
       "akhirnya forgotten mampir juga 😭 simpan screenshotnya buat bukti sejarah."
-    ]
-  },
-  {
-    "keyword": "halo, hai, hi, hey, hallo",
-    "jawaban": [
-      "halooo apa kabarr?",
-      "haiii  bloxy disini.",
-      "hellooo  ada yang bisa bloxy bantu?",
-      "haloo halooo 🤍",
-      "hiii  selamat datang, semoga betah di sini."
     ]
   },
   {
@@ -288,16 +198,6 @@
       "iya aku bot kenapa? kamu gk suka?."
     ]
   },
-  {
-    "keyword": "bot lucu, lucu bloxy, wkwk bloxy",
-    "jawaban": [
-      "akhirnya ada yang menghargai kerja keras saya 😭🙏",
-      "hehe makasih 😭 bot juga punya perasaan.",
-      "wkwkwk akhirnya bot dipuji 😭",
-      "jangan bikin bot salting dong 😭🙏",
-      "makasih yaa, besok bot makin rajin wkwk."
-    ]
-  },
 {
   "keyword": "sayang, aku sayang kamu, love you, i love you",
   "jawaban": [
@@ -306,16 +206,6 @@
     "akhirnya ada yang sayang sama bloxy",
     "aku simpan di database hati 🗿❤️",
     "jangan gitu, nanti aku error karena kebanyakan cinta"
-  ]
-},
-{
-  "keyword": "kangen, aku kangen, gue kangen, kangen kamu",
-  "jawaban": [
-    "cieee kangen 😭",
-    "aku juga kangen kalau server sepi",
-    "baru juga pergi sebentar udah kangen aja 👀",
-    "sini balik, server masih nungguin kamu ",
-    "kangen bot? bahaya nih sudah mulai bucin "
   ]
 },
 {
