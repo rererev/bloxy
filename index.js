@@ -1681,6 +1681,7 @@ const client = new Client({
 
 require('./verify')(client); // verifikasi member baru lewat tombol (!verifikasi)
 require('./poll')(client); // voting pakai tombol (!poll)
+require('./disconnect-alert')(client); // peringatan kalau banyak pemain disconnect serempak
 
 client.once('ready', () => {
   isBotSilenced = loadSilenceState();
