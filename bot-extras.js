@@ -233,7 +233,7 @@ function formatWarList(war) {
     .map((s) => {
       const members = groups.get(s);
       const full = members.length >= WAR_SERVER_SIZE ? ' ✅ penuh' : '';
-      const lines = members.map((m, i) => `${i + 1}. ${m.username} — <@${m.userId}> (\`${m.userId}\`)`);
+      const lines = members.map((m, i) => `${i + 1}. ${m.username} — <@${m.userId}>`);
       return `**Slot ${s}** (${members.length}/${WAR_SERVER_SIZE}${full})\n${lines.join('\n')}`;
     })
     .join('\n\n');
