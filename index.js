@@ -165,42 +165,6 @@ const AUTOLIST_CHANNEL_IDS = (process.env.AUTOLIST_CHANNEL_ID || '')
   .map((id) => id.trim())
   .filter(Boolean);
 
-// ====== KONFIGURASI SLOT ALERT (notif otomatis pas slot kosong lagi) ======
-// Channel tujuan alert. Kosongin = pakai channel autolist yang pertama di AUTOLIST_CHANNEL_ID.
-const SLOT_ALERT_CHANNEL_ID = process.env.SLOT_ALERT_CHANNEL_ID || '';
-// Role yang di-tag tiap ada slot kosong lagi. Bisa lebih dari satu, pisah koma.
-const SLOT_ALERT_ROLE_IDS = (process.env.SLOT_ALERT_ROLE_ID || '')
-  .split(',')
-  .map((id) => id.trim())
-  .filter(Boolean);
-
-// Status slot terakhir per server (key: "Server 1"/"Server 2"), buat bandingin
-// apakah barusan pindah dari FULL ke ada-slot. Disimpan ke FILE (bukan cuma memory),
-// biar gak reset tiap kali bot restart (baseline ilang = alert pertama sering ke-skip).
-const SLOT_STATUS_PATH = path.join(DATA_DIR, 'slot-status.json');
-
-function loadSlotStatus() {
-  try {
-    if (!fs.existsSync(SLOT_STATUS_PATH)) return new Map();
-    const raw = fs.readFileSync(SLOT_STATUS_PATH, 'utf-8');
-    const data = JSON.parse(raw);
-    return new Map(Object.entries(data));
-  } catch (err) {
-    console.error('Gagal load slot-status.json:', err);
-    return new Map();
-  }
-}
-
-function saveSlotStatus(map) {
-  try {
-    const obj = Object.fromEntries(map);
-    fs.writeFileSync(SLOT_STATUS_PATH, JSON.stringify(obj, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Gagal simpan slot-status.json:', err);
-  }
-}
-
-const lastKnownSlotStatus = loadSlotStatus();
 
 // ====== KONFIGURASI AUTO-REACT (react emoji otomatis di channel tertentu) ======
 const AUTOREACT_CHANNEL_IDS = (process.env.AUTOREACT_CHANNEL_ID || '')
@@ -304,96 +268,6 @@ function extractSlotCount(embed) {
   if (!match) return null;
 
   return { filled: parseInt(match[1], 10), total: parseInt(match[2], 10) };
-}
-
-// ====== SLOT ALERT: notif otomatis begitu status pindah dari FULL ke ada-slot ======
-
-async function sendSlotAlert(client, serverLabel, slotInfo) {
-  const sisa = slotInfo.total - slotInfo.filled;
-  const targetChannelId = SLOT_ALERT_CHANNEL_ID || AUTOLIST_CHANNEL_IDS[0];
-  if (!targetChannelId) return;
-
-  try {
-    const channel = await client.channels.fetch(targetChannelId);
-    const roleMentions = SLOT_ALERT_ROLE_IDS.map((id) => `<@&${id}>`).join(' ');
-
-    const lines = [];
-    if (roleMentions) lines.push(roleMentions);
-    lines.push(`${EMOJI.excited} **${serverLabel}** ada yang order! Sisa ${sisa}/${slotInfo.total} slot kosong ${EMOJI.gemasss}`);
-    if (sisa > 0) {
-      lines.push('Buruan order sebelum penuh!');
-    } else {
-      lines.push('Server FULL sekarang — ditunggu next open yaa!');
-    }
-
-    await channel.send({ content: lines.join('\n') });
-    console.log(`[SlotAlert] Kirim notif: ${serverLabel} sisa ${sisa}/${slotInfo.total}`);
-  } catch (err) {
-    console.error('Gagal kirim alert slot kosong:', err);
-  }
-}
-
-// Dipanggil tiap ada pesan baru ATAU pesan di-edit di channel autolist.
-// Bandingin status slot terbaru vs yang tersimpan sebelumnya — kalau baru aja pindah
-// dari FULL (sisa <= 0) ke ada slot (sisa > 0), kirim alert.
-async function handlePossibleAutolistUpdate(client, message) {
-  if (AUTOLIST_CHANNEL_IDS.length === 0) return;
-  if (!AUTOLIST_CHANNEL_IDS.includes(message.channel.id)) return;
-
-  console.log(`[SlotAlert][DEBUG] Pesan masuk/edit di channel autolist (${message.channel.id}), jumlah embed: ${message.embeds?.length || 0}`);
-
-  if (!message.embeds || message.embeds.length === 0) return;
-
-  for (const embed of message.embeds) {
-    console.log(`[SlotAlert][DEBUG] Embed title: "${embed.title || '(kosong)'}"`);
-    const title = (embed.title || '').toLowerCase();
-    if (!title.includes('list ptpt aktif')) {
-      console.log('[SlotAlert][DEBUG] Title gak cocok "list ptpt aktif", skip embed ini.');
-      continue;
-    }
-
-    let label = null;
-    if (title.includes('server 1')) label = 'Server 1';
-    else if (title.includes('server 2')) label = 'Server 2';
-
-    // Fallback: kalau title gak nyebut nomor server eksplisit, tebak dari channel-nya —
-    // channel pertama di AUTOLIST_CHANNEL_ID = Server 1, channel kedua = Server 2.
-    if (!label) {
-      const channelIndex = AUTOLIST_CHANNEL_IDS.indexOf(message.channel.id);
-      if (channelIndex === 0) label = 'Server 1';
-      else if (channelIndex === 1) label = 'Server 2';
-    }
-
-    if (!label) {
-      console.log('[SlotAlert][DEBUG] Gagal nentuin label server (title & channel index gak match), skip.');
-      continue;
-    }
-
-    const slotInfo = extractSlotCount(embed);
-    if (!slotInfo) {
-      console.log('[SlotAlert][DEBUG] Title cocok tapi gagal extract "Terisi: X/Y slot". RAW description:', JSON.stringify(embed.description || '(kosong)'));
-      console.log('[SlotAlert][DEBUG] RAW fields:', JSON.stringify(embed.fields || []));
-      continue;
-    }
-
-    const prev = lastKnownSlotStatus.get(label);
-    lastKnownSlotStatus.set(label, slotInfo);
-    saveSlotStatus(lastKnownSlotStatus);
-
-    console.log(`[SlotAlert][DEBUG] ${label}: sebelumnya=${prev ? `${prev.filled}/${prev.total}` : '(belum ada baseline)'}, sekarang=${slotInfo.filled}/${slotInfo.total}`);
-
-    // Baseline pertama (bot baru nyala) — simpan aja, jangan langsung alert.
-    if (!prev) {
-      console.log(`[SlotAlert][DEBUG] ${label} baru pertama kali ke-capture (baseline), belum alert.`);
-      continue;
-    }
-
-    // Alert tiap kali ADA SLOT BARU KEISI (filled bertambah) — gak perlu nunggu
-    // dari FULL dulu, langsung notif tiap ada yang order + sisa slot kosongnya.
-    if (slotInfo.filled > prev.filled) {
-      await sendSlotAlert(client, label, slotInfo);
-    }
-  }
 }
 
 // ====== AUTO-TRANSLATE: channel sumber (bahasa apapun) → translate ke Indonesia ======
@@ -1727,11 +1601,6 @@ client.on('messageCreate', async (message) => {
     } catch (err) {
       console.error('Error saat cek notif forgotten:', err);
     }
-    try {
-      await handlePossibleAutolistUpdate(client, message);
-    } catch (err) {
-      console.error('Error saat cek update autolist:', err);
-    }
   }
 
   // Auto-react & Auto-translate — dicek SEBELUM filter "abaikan bot" di bawah, soalnya
@@ -1932,20 +1801,6 @@ client.on('messageDeleteBulk', async (messages) => {
     await logBulkDeletedMessages(client, messages);
   } catch (err) {
     console.error('Error saat log bulk delete:', err);
-  }
-});
-
-client.on('messageUpdate', async (oldMessage, newMessage) => {
-  // Embed "LIST PTPT AKTIF" biasanya di-EDIT di tempat (pinned message yang di-update terus),
-  // bukan post pesan baru tiap kali slot berubah — makanya perlu dengerin event edit ini juga.
-  if (isBotSilenced) return;
-  try {
-    // newMessage kadang partial (belum full-fetch) — fetch dulu biar embeds-nya lengkap.
-    const fullMessage = newMessage.partial ? await newMessage.fetch().catch(() => null) : newMessage;
-    if (!fullMessage) return;
-    await handlePossibleAutolistUpdate(client, fullMessage);
-  } catch (err) {
-    console.error('Error saat cek update autolist (messageUpdate):', err);
   }
 });
 
