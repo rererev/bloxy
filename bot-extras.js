@@ -398,6 +398,120 @@ async function handleWarSwapCommand(message, content) {
   });
 }
 
+// !warrata [jumlah slot] — bagi rata peserta antar slot (admin). Yang dipindah adalah peserta yang
+// paling AKHIR daftar di slot yang kelebihan, jadi peserta lama tetap di slotnya.
+const MAX_BALANCE_SLOTS = 20;
+
+function planBalance(war, k) {
+  const total = war.members.length;
+  const base = Math.floor(total / k);
+  const extra = total % k;
+  const target = (slot) => base + (slot <= extra ? 1 : 0); // slot awal dapat sisa pembagian
+
+  const pool = []; // peserta yang harus pindah
+  const counts = new Map();
+  for (let slot = 1; slot <= k; slot++) {
+    const inSlot = war.members.filter((m) => m.server === slot);
+    const keep = inSlot.slice(0, target(slot));
+    inSlot.slice(target(slot)).forEach((m) => pool.push(m));
+    counts.set(slot, keep.length);
+  }
+  war.members.filter((m) => !(m.server >= 1 && m.server <= k)).forEach((m) => pool.push(m)); // slot di luar 1..k
+  pool.sort((a, b) => war.members.indexOf(a) - war.members.indexOf(b));
+
+  const moves = [];
+  for (let slot = 1; slot <= k; slot++) {
+    while (counts.get(slot) < target(slot)) {
+      const m = pool.shift();
+      moves.push({ member: m, from: m.server, to: slot });
+      counts.set(slot, counts.get(slot) + 1);
+    }
+  }
+  const after = Array.from({ length: k }, (_, i) => target(i + 1));
+  return { moves, after };
+}
+
+async function handleWarBalanceCommand(message, content) {
+  if (!isAdmin(message)) {
+    await message.reply('Command ini cuma buat Administrator yaa 🙏');
+    return;
+  }
+  const war = warState[message.channel.id];
+  if (!war || war.members.length === 0) {
+    await message.reply('Belum ada peserta war boss di channel ini.');
+    return;
+  }
+
+  const arg = content.split(/\s+/)[1];
+  if (arg !== undefined && !/^\d+$/.test(arg)) {
+    await message.reply('Format: `!warrata` (pakai jumlah slot yang ada) atau `!warrata <jumlah slot>` — contoh: `!warrata 2`');
+    return;
+  }
+
+  const total = war.members.length;
+  const need = Math.ceil(total / WAR_SERVER_SIZE);
+  const maxUsed = Math.max(...war.members.map((m) => m.server || 1));
+  const k = arg !== undefined ? parseInt(arg, 10) : Math.max(need, maxUsed);
+
+  if (k < need) {
+    await message.reply(`${total} peserta butuh minimal ${need} slot (maks ${WAR_SERVER_SIZE} per slot). Coba \`!warrata ${need}\`.`);
+    return;
+  }
+  if (k > MAX_BALANCE_SLOTS) {
+    await message.reply(`Maksimal ${MAX_BALANCE_SLOTS} slot yaa.`);
+    return;
+  }
+
+  const before = Array.from({ length: k }, (_, i) => serverCount(war, i + 1));
+  const { moves, after } = planBalance(war, k);
+  const fmt = (arr) => arr.map((n, i) => `Slot ${i + 1}: ${n}`).join(' • ');
+
+  if (moves.length === 0) {
+    await message.reply(`Sudah rata 👍 (${fmt(before)})`);
+    return;
+  }
+
+  await message.reply({
+    content:
+      `⚖️ **Bagi rata ${total} peserta ke ${k} slot**\nSebelum: ${fmt(before)}\nSesudah: ${fmt(after)}\n` +
+      `**${moves.length} peserta** akan pindah slot (peserta yang paling akhir daftar di slot yang kelebihan).\n` +
+      'Ketik **ya** dalam 30 detik buat lanjut, atau **batal**.',
+    allowedMentions: NO_PING,
+  });
+
+  let answer;
+  try {
+    const collected = await message.channel.awaitMessages({
+      filter: (m) => m.author.id === message.author.id && /^(ya|batal)$/i.test(m.content.trim()),
+      max: 1,
+      time: 30 * 1000,
+      errors: ['time'],
+    });
+    answer = collected.first().content.trim().toLowerCase();
+  } catch {
+    await message.channel.send('⏱️ Waktu konfirmasi habis, gak ada peserta yang dipindah.');
+    return;
+  }
+  if (answer !== 'ya') {
+    await message.channel.send('Dibatalkan, gak ada peserta yang dipindah.');
+    return;
+  }
+
+  // Pastikan daftar belum berubah selama menunggu konfirmasi, lalu hitung ulang & terapkan
+  const fresh = planBalance(war, k);
+  fresh.moves.forEach(({ member, to }) => {
+    member.server = to;
+  });
+  saveWar();
+
+  const shown = fresh.moves.slice(0, 20).map((mv) => `• ${mv.member.username}: Slot ${mv.from} → Slot ${mv.to}`);
+  const more = fresh.moves.length > 20 ? `\n…dan ${fresh.moves.length - 20} lainnya` : '';
+  await message.channel.send({
+    content: `✅ **Selesai dibagi rata!** ${fmt(fresh.after)}\n${shown.join('\n')}${more}\nCek hasilnya pakai \`!warlist\`.`,
+    allowedMentions: NO_PING,
+  });
+}
+
 async function handleWarCloseCommand(message) {
   if (!isAdmin(message)) {
     await message.reply('Command ini cuma buat Administrator yaa 🙏');
@@ -444,6 +558,7 @@ async function handleHelpCommand(message) {
           '`!warhapus <slot-nomor|@user|semua>` — hapus peserta (contoh `1-5` = Slot 1 nomor 5)',
           '`!warpindah <slot-nomor|@user> <slot>` — pindahin peserta ke slot lain',
           '`!wartukar <slot-nomor> <slot-nomor>` — tukar slot dua peserta',
+          '`!warrata [jumlah slot]` — bagi rata peserta antar slot',
           '`!warselesai` — tutup pendaftaran + tampilkan daftar akhir',
         ].join('\n'),
       },
@@ -506,6 +621,10 @@ async function handleExtraCommand(message, content) {
   }
   if (lower === '!warpindah' || lower.startsWith('!warpindah ')) {
     await handleWarMoveCommand(message, content);
+    return true;
+  }
+  if (lower === '!warrata' || lower.startsWith('!warrata ') || lower === '!warbagi' || lower.startsWith('!warbagi ')) {
+    await handleWarBalanceCommand(message, content);
     return true;
   }
   if (lower === '!wartukar' || lower.startsWith('!wartukar ')) {
