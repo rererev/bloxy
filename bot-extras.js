@@ -548,6 +548,7 @@ async function handleHelpCommand(message) {
           '`ikut` / `batal` — daftar / batal ikut saat war boss dibuka',
           '`!warlist` — lihat daftar peserta war boss',
           '`!dmjam` — lihat jadwal DM otomatis',
+          '`!usn <username>` — tampilkan avatar Roblox (alias `!avatar`)',
           'Tanya apa aja soal order/slot — Bloxy jawab otomatis (sebut "bloxy" atau mention)',
         ].join('\n'),
       },
