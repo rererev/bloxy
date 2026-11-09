@@ -129,6 +129,16 @@ const PLAYER_MONITOR_CHANNEL_IDS = (process.env.PLAYER_MONITOR_CHANNEL_ID || '')
 // Disimpan di memory aja (bukan file) — datanya emang cuma valid sesaat, gak perlu persist.
 const playerLocationData = new Map();
 
+// Snapshot TERBARU per server, key = nama host (akun di judul embed "Check Player On Server <host>", lowercase).
+// Tiap embed baru dari host yang sama MENGGANTI snapshot lamanya, jadi player yang sudah keluar ikut hilang.
+const serverSnapshots = new Map();
+// Host yang dikenal (dipakai supaya "server minyaktalon9990" tetap dikenali walau datanya belum masuk).
+const PLAYER_MONITOR_HOSTS = (process.env.PLAYER_MONITOR_HOSTS || 'reverned99,minyaktalon9990')
+  .split(',')
+  .map((h) => h.trim().toLowerCase())
+  .filter(Boolean);
+const SNAPSHOT_STALE_MS = 15 * 60 * 1000; // lewat ini dianggap "data lama"
+
 // ====== KONFIGURASI ACCESS REMINDER (!kasihakses — DM otomatis Minggu jam 08.00 WIB) ======
 const ACCESS_DATA_PATH = path.join(DATA_DIR, 'access-schedule.json');
 // Reminder terakhir dikirim (tanggal WIB, format YYYY-MM-DD) — biar gak double-kirim
@@ -1365,6 +1375,14 @@ function parseCheckPlayerEmbed(embed) {
 
 function updatePlayerLocationData(parsed) {
   const now = Date.now();
+  if (parsed.anchorPlayer) {
+    serverSnapshots.set(parsed.anchorPlayer.toLowerCase(), {
+      anchor: parsed.anchorPlayer,
+      players: parsed.players.map((p) => ({ ...p })),
+      serverLuck: parsed.serverLuck,
+      updatedAt: now,
+    });
+  }
   for (const p of parsed.players) {
     playerLocationData.set(p.username.toLowerCase(), {
       username: p.username,
@@ -1431,6 +1449,63 @@ function findPlayerLocationAnswer(question) {
   }
 
   return null;
+}
+
+// Format satu snapshot server jadi teks. `budget` = batas karakter supaya muat di 1 pesan Discord.
+function formatServerSnapshot(snap, budget) {
+  const age = Date.now() - snap.updatedAt;
+  const stale = age > SNAPSHOT_STALE_MS ? ' ⚠️ data lama, belum ada update baru' : '';
+  const luck = snap.serverLuck ? ` • Luck: ${snap.serverLuck}` : '';
+  const head = `📊 **Server ${snap.anchor}**: ${snap.players.length} player (update ${formatElapsed(age)})${luck}${stale}`;
+
+  const lines = [];
+  let used = head.length;
+  for (let i = 0; i < snap.players.length; i++) {
+    const p = snap.players[i];
+    const line = `${i + 1}. ${p.username} — Caught: ${p.caught} — 📍 ${p.location}`;
+    if (used + line.length + 1 > budget) {
+      lines.push(`…dan ${snap.players.length - i} player lainnya`);
+      break;
+    }
+    lines.push(line);
+    used += line.length + 1;
+  }
+  return [head, ...lines].join('\n');
+}
+
+// Jawab pertanyaan jumlah/daftar player di server tertentu (atau semua server kalau host gak disebut),
+// dari data Player Monitor. Return null kalau pertanyaannya bukan soal itu.
+function findServerPlayersAnswer(question) {
+  const escape = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const asksCount = /(berapa|jumlah|total|siapa\s*(aja|saja)|ada siapa|jabarin|jabarkan|list|daftar|rincian|detail|isi\s*server)/i.test(question);
+  if (!asksCount) return null;
+
+  const hosts = [...new Set([...PLAYER_MONITOR_HOSTS, ...serverSnapshots.keys()])];
+  const named = hosts.filter((h) => new RegExp(`\\b${escape(h)}\\b`, 'i').test(question));
+  const mentionsServer = /\bserver\b/i.test(question);
+  const mentionsPeople = /(orang|player|pemain|member)/i.test(question);
+
+  // Harus jelas lagi nanya isi server: nyebut host, atau (kata "server" + kata orang/player)
+  if (!(named.length || (mentionsServer && mentionsPeople))) return null;
+
+  if (named.length) {
+    const budget = Math.floor(1800 / named.length);
+    return named
+      .map((h) => {
+        const snap = serverSnapshots.get(h);
+        return snap
+          ? formatServerSnapshot(snap, budget)
+          : `Belum ada data untuk server **${h}** (belum ada embed "Check Player On Server ${h}" yang masuk).`;
+      })
+      .join('\n\n');
+  }
+
+  if (serverSnapshots.size === 0) {
+    return 'Belum ada data player yang masuk dari Player Monitor. Data muncul setelah embed "Check Player On Server ..." diposting.';
+  }
+  const snaps = [...serverSnapshots.values()];
+  const budget = Math.floor(1800 / snaps.length);
+  return snaps.map((snap) => formatServerSnapshot(snap, budget)).join('\n\n');
 }
 
 // ====== DELETE LOG: log isi pesan yang dihapus ke channel tertentu ======
@@ -1760,7 +1835,7 @@ client.on('messageCreate', async (message) => {
           // Cek dulu apakah ini nanya lokasi player yang datanya kita punya (dari
           // Player Monitor) — kalau ketemu, jawab langsung dari data, gak usah ke AI
           // (lebih cepat & gak beresiko salah/ngarang).
-          const playerAnswer = findPlayerLocationAnswer(cleanedQuestion);
+          const playerAnswer = findServerPlayersAnswer(cleanedQuestion) || findPlayerLocationAnswer(cleanedQuestion);
           if (playerAnswer) {
             replyText = playerAnswer;
           } else {
