@@ -184,6 +184,7 @@ async function handleWarBossCommand(message, content) {
 
 // Dipanggil untuk SEMUA pesan non-bot. Return true kalau pesan ini "ikut"/"batal" di channel war yang kebuka.
 async function handleWarJoin(message) {
+  if (await handleWarNaturalLanguage(message)) return true; // "Bloxy, tag yang ikut warboss."
   const war = warState[message.channel.id];
   if (!war?.open) return false;
 
@@ -559,6 +560,10 @@ async function handleHelpCommand(message) {
           '`!warpindah <slot-nomor|@user> <slot>` — pindahin peserta ke slot lain',
           '`!wartukar <slot-nomor> <slot-nomor>` — tukar slot dua peserta',
           '`!warrata [jumlah slot]` — bagi rata peserta antar slot',
+          '`!wartag [pesan]` — mention semua peserta war boss',
+          '`!warrole [@role]` — kasih role Warboss ke semua peserta',
+          '`!waruntag` — cabut role Warboss dari peserta',
+          'Atau ketik: **Bloxy, tag yang ikut warboss.**',
           '`!warselesai` — tutup pendaftaran + tampilkan daftar akhir',
         ].join('\n'),
       },
@@ -596,6 +601,256 @@ async function handleHelpCommand(message) {
 // Router: panggil dari messageCreate. Return true kalau command ditangani.
 // ====================================================================
 
+// ====================================================================
+// 5. WAR BOSS: tag peserta + kelola role Warboss
+//    Memakai pendaftaran yang sudah ada (tidak ada sistem pendaftaran baru) dan hanya untuk peserta
+//    event yang SEDANG BERLANGSUNG atau event TERAKHIR.
+//      !wartag [pesan]    → mention semua peserta
+//      !warrole [@role]   → kasih role Warboss ke semua peserta (role disimpan setelah dipakai sekali)
+//      !waruntag [@role]  → cabut role Warboss dari peserta
+//    Bahasa natural (khusus Administrator): "Bloxy, tag yang ikut warboss."
+// ====================================================================
+
+const WAR_SETTINGS_FILE = 'war-settings.json';
+let warSettings = loadJson(WAR_SETTINGS_FILE, {}); // { [guildId]: { roleId } }
+
+// Event yang dipakai: war di channel ini kalau masih kebuka; kalau tidak, event TERAKHIR yang dibuka (channel mana pun).
+function resolveCurrentWar(channelId) {
+  const here = warState[channelId];
+  if (here?.open && here.members?.length) return { channelId, war: here };
+  let best = null;
+  for (const [cid, war] of Object.entries(warState)) {
+    if (!war.members?.length) continue;
+    if (!best || String(war.openedAt || '') > String(best.war.openedAt || '')) best = { channelId: cid, war };
+  }
+  return best;
+}
+
+const describeWar = (sel) =>
+  `war boss di <#${sel.channelId}> (${sel.war.open ? 'sedang berlangsung' : 'event terakhir'}${sel.war.title ? `: ${sel.war.title}` : ''})`;
+
+const uniqueIds = (war) => [...new Set(war.members.map((m) => m.userId))];
+
+// ----- !wartag -----
+const TAG_COOLDOWN_MS = 15 * 1000;
+const lastTag = new Map(); // channelId -> timestamp
+
+async function doWarTag(message, extraText) {
+  const sel = resolveCurrentWar(message.channel.id);
+  if (!sel) {
+    await message.reply('Belum ada peserta war boss yang terdaftar.');
+    return;
+  }
+  const now = Date.now();
+  if (now - (lastTag.get(message.channel.id) || 0) < TAG_COOLDOWN_MS) {
+    await message.reply({ content: 'Baru aja ngetag, tunggu sebentar yaa biar gak dobel 🙏', allowedMentions: NO_PING });
+    return;
+  }
+  lastTag.set(message.channel.id, now);
+
+  // kelompokkan per slot
+  const groups = new Map();
+  sel.war.members.forEach((m) => {
+    const slot = m.server || 1;
+    if (!groups.has(slot)) groups.set(slot, []);
+    groups.get(slot).push(m);
+  });
+
+  const sublines = [];
+  for (const slot of [...groups.keys()].sort((a, b) => a - b)) {
+    const members = groups.get(slot);
+    for (let i = 0; i < members.length; i += 40) {
+      const part = members.slice(i, i + 40);
+      sublines.push({
+        ids: part.map((m) => m.userId),
+        text: `**Slot ${slot}${i ? ' (lanjut)' : ''}:** ${part.map((m) => `<@${m.userId}>`).join(' ')}`,
+      });
+    }
+  }
+
+  const header = `⚔️ **Panggilan war boss!**${extraText ? ` ${extraText}` : ''}${sel.channelId !== message.channel.id ? `\n_(peserta ${describeWar(sel)})_` : ''}`;
+  const messages = [];
+  let cur = header;
+  let ids = [];
+  for (const sl of sublines) {
+    if (ids.length && (cur.length + sl.text.length + 1 > 1900 || ids.length + sl.ids.length > 90)) {
+      messages.push({ content: cur, ids });
+      cur = '';
+      ids = [];
+    }
+    cur += (cur ? '\n' : '') + sl.text;
+    ids.push(...sl.ids);
+  }
+  messages.push({ content: cur, ids });
+
+  for (const m of messages) {
+    await message.channel.send({ content: m.content, allowedMentions: { users: m.ids } });
+  }
+}
+
+// ----- !warrole / !waruntag -----
+const normName = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+function resolveWarRole(message, mentionedRole) {
+  const guild = message.guild;
+  if (mentionedRole) return { role: mentionedRole, fromMention: true };
+  const savedId = process.env.WARBOSS_ROLE_ID || warSettings[guild.id]?.roleId;
+  if (savedId) {
+    const r = guild.roles.cache.get(savedId);
+    if (r) return { role: r };
+  }
+  const byName = guild.roles.cache.find((r) => normName(r.name) === 'warboss');
+  return { role: byName || null };
+}
+
+// Role dengan izin ini gak boleh dikasih massal ke peserta
+const WAR_DANGEROUS = [
+  ['Administrator', PermissionsBitField.Flags.Administrator],
+  ['Manage Server', PermissionsBitField.Flags.ManageGuild],
+  ['Manage Roles', PermissionsBitField.Flags.ManageRoles],
+  ['Manage Channels', PermissionsBitField.Flags.ManageChannels],
+  ['Kick Members', PermissionsBitField.Flags.KickMembers],
+  ['Ban Members', PermissionsBitField.Flags.BanMembers],
+  ['Manage Messages', PermissionsBitField.Flags.ManageMessages],
+  ['Mention @everyone', PermissionsBitField.Flags.MentionEveryone],
+];
+
+function warRoleProblem(message, role, adding) {
+  const guild = message.guild;
+  const me = guild.members.me;
+  if (role.id === guild.id) return 'Role @everyone gak bisa dipakai di sini.';
+  if (role.managed) return `Role **${role.name}** dikelola integrasi/bot lain, jadi gak bisa diatur manual.`;
+  if (!me?.permissions.has(PermissionsBitField.Flags.ManageRoles)) return 'Bot belum punya izin **Manage Roles**.';
+  if (role.position >= me.roles.highest.position) {
+    return `Role **${role.name}** posisinya sejajar/di atas role bot. Naikkan role bot di atas **${role.name}** dulu di Server Settings → Roles.`;
+  }
+  if (adding) {
+    const bad = WAR_DANGEROUS.filter(([, flag]) => role.permissions?.has(flag, false)).map(([n]) => n);
+    if (bad.length) return `Role **${role.name}** punya izin berbahaya (${bad.join(', ')}), jadi gak aku kasih massal. Cabut izin itu dari role-nya dulu.`;
+  }
+  return null;
+}
+
+const warRoleRunning = new Set(); // guildId yang lagi diproses
+
+async function doWarRole(message, adding, mentionedRole) {
+  const sel = resolveCurrentWar(message.channel.id);
+  if (!sel) {
+    await message.reply('Belum ada peserta war boss yang terdaftar.');
+    return;
+  }
+  const guild = message.guild;
+  const { role, fromMention } = resolveWarRole(message, mentionedRole);
+  if (!role) {
+    await message.reply('Aku belum nemu role Warboss. Sebut rolenya sekali: `!warrole @RoleWarboss` (nanti disimpan), atau isi variabel `WARBOSS_ROLE_ID`.');
+    return;
+  }
+  const problem = warRoleProblem(message, role, adding);
+  if (problem) {
+    await message.reply(problem);
+    return;
+  }
+  if (warRoleRunning.has(guild.id)) {
+    await message.reply('Masih ada proses role war boss yang lagi jalan, tunggu sampai selesai yaa.');
+    return;
+  }
+  if (adding && fromMention) {
+    warSettings[guild.id] = { roleId: role.id };
+    saveJson(WAR_SETTINGS_FILE, warSettings);
+  }
+
+  const ids = uniqueIds(sel.war);
+  const verb = adding ? 'Memberi' : 'Mencabut';
+  const reason = `${adding ? 'Dikasih' : 'Dicabut'} dari peserta war boss oleh ${message.author.tag}`;
+  warRoleRunning.add(guild.id);
+  const status = await message.channel.send({ content: `⏳ ${verb} role **${role.name}** (${describeWar(sel)})... 0/${ids.length}`, allowedMentions: NO_PING });
+  let ok = 0;
+  let skipped = 0;
+  let missing = 0;
+  const failed = [];
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      const member = await guild.members.fetch(ids[i]).catch(() => null);
+      if (!member) {
+        missing++;
+      } else if (member.roles.cache.has(role.id) === adding) {
+        skipped++; // sudah punya (saat memberi) / memang belum punya (saat mencabut)
+      } else {
+        try {
+          if (adding) await member.roles.add(role, reason);
+          else await member.roles.remove(role, reason);
+          ok++;
+        } catch (err) {
+          failed.push(member.displayName || member.user?.username || ids[i]);
+        }
+      }
+      if ((i + 1) % 10 === 0 && i + 1 < ids.length) {
+        await status.edit({ content: `⏳ ${verb} role **${role.name}**... ${i + 1}/${ids.length}`, allowedMentions: NO_PING }).catch(() => {});
+      }
+    }
+  } finally {
+    warRoleRunning.delete(guild.id);
+  }
+
+  let summary = adding
+    ? `✅ Role **${role.name}** dikasih ke **${ok}** peserta (${describeWar(sel)}).`
+    : `✅ Role **${role.name}** dicabut dari **${ok}** peserta (${describeWar(sel)}).`;
+  if (skipped) summary += `\n• ${skipped} peserta ${adding ? 'sudah punya role-nya' : 'memang belum punya role-nya'}.`;
+  if (missing) summary += `\n• ${missing} peserta sudah tidak ada di server.`;
+  if (failed.length) summary += `\n⚠️ ${failed.length} gagal: ${failed.slice(0, 10).join(', ')}${failed.length > 10 ? ', dll.' : ''}`;
+  await status.edit({ content: summary, allowedMentions: NO_PING }).catch(() => message.channel.send({ content: summary, allowedMentions: NO_PING }));
+}
+
+// ----- command berawalan ! (khusus Administrator) -----
+async function handleWarTagCommand(message, content) {
+  if (!isAdmin(message)) {
+    await message.reply('Command ini cuma buat Administrator yaa 🙏');
+    return;
+  }
+  await doWarTag(message, content.replace(/^!wartag\s*/i, '').trim());
+}
+
+async function handleWarRoleCommand(message, adding) {
+  if (!isAdmin(message)) {
+    await message.reply('Command ini cuma buat Administrator yaa 🙏');
+    return;
+  }
+  await doWarRole(message, adding, message.mentions.roles?.first());
+}
+
+// ----- bahasa natural: "Bloxy, tag yang ikut warboss." -----
+const BOT_NICKS = (process.env.BOT_NICKNAMES || 'bloxy')
+  .split(',')
+  .map((n) => n.trim().toLowerCase())
+  .filter(Boolean);
+const NICK_REGEX = new RegExp(`\\b(${BOT_NICKS.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'i');
+
+function detectWarIntent(text) {
+  if (!/war\s?boss/i.test(text)) return null;
+  if (/\b(cabut\w*|copot\w*|lepas\w*|hapus\w*|ambil\w*|remove|untag)\b.*\brole\b|\brole\b.*\b(cabut\w*|copot\w*|lepas\w*|hapus\w*|remove)\b/i.test(text)) return 'untag';
+  if (/\b(kasih\w*|kasi|beri\w*|tambah\w*|add|pasang\w*|bagi\w*)\b.*\brole\b|\brole\b.*\b(kasih\w*|beri\w*|ke peserta|ke yang ikut)\b/i.test(text)) return 'role';
+  if (/\b(tag\w*|mention|ping|panggil\w*)\b/i.test(text)) return 'tag';
+  return null;
+}
+
+async function handleWarNaturalLanguage(message) {
+  const text = message.content || '';
+  if (!text || text.startsWith('!')) return false;
+  const botId = message.client?.user?.id;
+  const addressed = NICK_REGEX.test(text) || (botId && message.mentions?.users?.has?.(botId));
+  if (!addressed) return false;
+  const intent = detectWarIntent(text);
+  if (!intent) return false;
+
+  if (!isAdmin(message)) {
+    await message.reply('Cuma Administrator yang bisa nyuruh aku ngetag atau ngatur role peserta war boss yaa 🙏');
+    return true;
+  }
+  if (intent === 'tag') await doWarTag(message, '');
+  else await doWarRole(message, intent === 'role', undefined);
+  return true;
+}
+
 async function handleExtraCommand(message, content) {
   const lower = content.toLowerCase();
 
@@ -629,6 +884,18 @@ async function handleExtraCommand(message, content) {
   }
   if (lower === '!wartukar' || lower.startsWith('!wartukar ')) {
     await handleWarSwapCommand(message, content);
+    return true;
+  }
+  if (lower === '!wartag' || lower.startsWith('!wartag ')) {
+    await handleWarTagCommand(message, content);
+    return true;
+  }
+  if (lower === '!warrole' || lower.startsWith('!warrole ')) {
+    await handleWarRoleCommand(message, true);
+    return true;
+  }
+  if (lower === '!waruntag' || lower.startsWith('!waruntag ')) {
+    await handleWarRoleCommand(message, false);
     return true;
   }
   if (lower === '!warselesai') {
