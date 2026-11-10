@@ -17,19 +17,46 @@ function isAdmin(message) {
 }
 
 function loadJson(file, fallback) {
+  const p = path.join(DATA_DIR, file);
   try {
-    const p = path.join(DATA_DIR, file);
     if (!fs.existsSync(p)) return fallback;
     return JSON.parse(fs.readFileSync(p, 'utf-8'));
   } catch (err) {
     console.error(`[bot-extras] Gagal load ${file}:`, err);
+    // 1) coba pulihkan dari cadangan terakhir
+    try {
+      const bak = `${p}.bak`;
+      if (fs.existsSync(bak)) {
+        const data = JSON.parse(fs.readFileSync(bak, 'utf-8'));
+        console.error(`[bot-extras] ${file} rusak, dipulihkan dari ${file}.bak`);
+        return data;
+      }
+    } catch (e2) {
+      /* cadangan juga rusak */
+    }
+    // 2) simpan salinan file rusak supaya gak ketimpa data kosong di penyimpanan berikutnya
+    try {
+      fs.copyFileSync(p, `${p}.rusak-${Date.now()}`);
+    } catch (e3) {
+      /* abaikan */
+    }
     return fallback;
   }
 }
 
 function saveJson(file, data) {
+  const p = path.join(DATA_DIR, file);
+  const tmp = `${p}.tmp`;
   try {
-    fs.writeFileSync(path.join(DATA_DIR, file), JSON.stringify(data, null, 2), 'utf-8');
+    if (fs.existsSync(p)) {
+      try {
+        fs.copyFileSync(p, `${p}.bak`); // cadangan versi sebelumnya
+      } catch (e) {
+        /* cadangan opsional */
+      }
+    }
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmp, p); // atomik: file gak pernah setengah tertulis kalau bot mati mendadak
     return true;
   } catch (err) {
     console.error(`[bot-extras] Gagal simpan ${file}:`, err);
@@ -564,6 +591,7 @@ async function handleHelpCommand(message) {
           '`!warrole [@role]` — kasih role Warboss ke semua peserta',
           '`!waruntag` — cabut role Warboss dari peserta',
           'Atau ketik: **Bloxy, tag yang ikut warboss.**',
+          '`!warpulih [jumlah pesan]` — pulihkan daftar war dari riwayat channel (kalau data hilang)',
           '`!warselesai` — tutup pendaftaran + tampilkan daftar akhir',
         ].join('\n'),
       },
@@ -851,6 +879,224 @@ async function handleWarNaturalLanguage(message) {
   return true;
 }
 
+// ====================================================================
+// 6. WAR BOSS: pulihkan daftar dari RIWAYAT CHANNEL (kalau war-data.json hilang)
+//    !warpulih [jumlah pesan] [timpa]
+//    Bloxy membaca pesannya sendiri + pesan "ikut" di channel ini: pengumuman "WAR BOSS DIBUKA!",
+//    daftar lengkap terakhir (!warlist / !warselesai), lalu mengulang semua kejadian setelahnya
+//    (ikut, batal, hapus, pindah, tukar, bagi rata).
+// ====================================================================
+
+function parseWarListLines(lines) {
+  const members = [];
+  let slot = 0;
+  for (const raw of lines) {
+    const line = raw.trim();
+    const head = line.match(/^\*\*(?:Slot|Server) (\d+)\*\*/);
+    if (head) {
+      slot = parseInt(head[1], 10);
+      continue;
+    }
+    const m = line.match(/^(\d+)\.\s+(.+?)\s+—\s+<@!?(\d+)>/);
+    if (m && slot) members.push({ userId: m[3], username: m[2], server: slot });
+  }
+  return members;
+}
+
+async function collectHistory(channel, limit) {
+  const all = [];
+  let before;
+  while (all.length < limit) {
+    const batch = await channel.messages.fetch(before ? { limit: 100, before } : { limit: 100 });
+    if (!batch.size) break;
+    all.push(...batch.values());
+    before = batch.last().id;
+    if (batch.size < 100) break;
+  }
+  return all.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+}
+
+function rebuildWarFromHistory(messages, botId) {
+  const isBot = (m) => m.author?.id === botId;
+  let startIdx = -1;
+  messages.forEach((m, i) => {
+    if (isBot(m) && /WAR BOSS DIBUKA/i.test(m.embeds?.[0]?.title || '')) startIdx = i;
+  });
+  if (startIdx === -1) return null;
+
+  const ann = messages[startIdx];
+  const titleMatch = (ann.embeds[0].description || '').match(/^\*\*(.+?)\*\*/);
+  const war = {
+    open: true,
+    title: titleMatch ? titleMatch[1] : '',
+    openedBy: '(dipulihkan dari riwayat channel)',
+    openedAt: new Date(ann.createdTimestamp).toISOString(),
+    members: [],
+  };
+  const notes = [];
+  const after = messages.slice(startIdx + 1);
+
+  // Dasar: daftar lengkap TERAKHIR (!warlist / !warselesai); potongan lanjutannya ikut digabung
+  let from = 0;
+  for (let i = after.length - 1; i >= 0; i--) {
+    const c = after[i].content || '';
+    if (!isBot(after[i]) || !(c.startsWith('⚔️ **Daftar peserta war boss**') || c.includes('**Pendaftaran war boss ditutup.**'))) continue;
+    const lines = c.split('\n');
+    let j = i + 1;
+    while (
+      j < after.length &&
+      isBot(after[j]) &&
+      after[j].createdTimestamp - after[i].createdTimestamp < 30000 &&
+      /^(\*\*(Slot|Server) \d+\*\*|\d+\. .+ — <@!?\d+>|▸)/.test(after[j].content || '')
+    ) {
+      lines.push(...after[j].content.split('\n'));
+      j++;
+    }
+    const base = parseWarListLines(lines);
+    if (base.length) {
+      const at = new Date(after[i].createdTimestamp).toISOString();
+      war.members = base.map((m) => ({ ...m, joinedAt: at }));
+      if (c.includes('**Pendaftaran war boss ditutup.**')) war.open = false;
+      from = j;
+      notes.push(`Dasar: daftar lengkap terakhir (${base.length} peserta), lalu kejadian setelahnya diulang.`);
+    }
+    break;
+  }
+  if (from === 0) notes.push('Tidak ada daftar lengkap (!warlist) di riwayat, jadi dibangun dari pesan "ikut" dan perintah admin.');
+
+  const findByName = (name) => {
+    const hits = war.members.filter((m) => m.username === name);
+    if (hits.length > 1) notes.push(`Ada ${hits.length} peserta bernama "${name}", yang diubah adalah yang pertama.`);
+    return war.members.findIndex((m) => m.username === name);
+  };
+  const miss = (what, name) => notes.push(`${what} "${name}" gak bisa diterapkan (nama tidak ketemu).`);
+
+  for (let i = from; i < after.length; i++) {
+    const m = after[i];
+    const c = m.content || '';
+
+    if (!isBot(m)) {
+      if (!war.open) continue;
+      if (JOIN_REGEX.test(c)) {
+        if (!war.members.some((x) => x.userId === m.author.id)) {
+          war.members.push({
+            userId: m.author.id,
+            username: m.member?.displayName || m.author.globalName || m.author.username,
+            server: nextFreeServer(war),
+            joinedAt: new Date(m.createdTimestamp).toISOString(),
+          });
+        }
+      } else if (LEAVE_REGEX.test(c)) {
+        const k = war.members.findIndex((x) => x.userId === m.author.id);
+        if (k !== -1) war.members.splice(k, 1);
+      }
+      continue;
+    }
+
+    let r;
+    if ((r = c.match(/^🗑️ (.+) dihapus dari daftar \(sisa \d+ orang\)\./))) {
+      const k = findByName(r[1]);
+      if (k !== -1) war.members.splice(k, 1);
+      else miss('Penghapusan', r[1]);
+    } else if (/^🗑️ \d+ peserta dihapus\. Daftar sekarang kosong\./.test(c)) {
+      war.members = [];
+    } else if ((r = c.match(/^✅ (.+) dipindah dari Slot (\d+) ke Slot (\d+)\./))) {
+      const k = findByName(r[1]);
+      if (k !== -1) war.members[k].server = parseInt(r[3], 10);
+      else miss('Pemindahan', r[1]);
+    } else if ((r = c.match(/^🔁 (.+?) → Slot (\d+), (.+?) → Slot (\d+)\./))) {
+      const a = findByName(r[1]);
+      const b = findByName(r[3]);
+      if (a !== -1) war.members[a].server = parseInt(r[2], 10);
+      else miss('Tukar slot', r[1]);
+      if (b !== -1) war.members[b].server = parseInt(r[4], 10);
+      else miss('Tukar slot', r[3]);
+    } else if (c.startsWith('✅ **Selesai dibagi rata!**')) {
+      for (const line of c.split('\n')) {
+        const mv = line.match(/^• (.+): Slot (\d+) → Slot (\d+)$/);
+        if (!mv) continue;
+        const k = findByName(mv[1]);
+        if (k !== -1) war.members[k].server = parseInt(mv[3], 10);
+        else miss('Bagi rata', mv[1]);
+      }
+      if (/…dan \d+ lainnya/.test(c)) notes.push('Daftar pemindahan !warrata terpotong (maks 20 nama), jadi sebagian slot bisa beda. Cek !warlist.');
+    } else if (c.includes('**Pendaftaran war boss ditutup.**')) {
+      war.open = false;
+    }
+  }
+  return { war, notes };
+}
+
+async function handleWarRestoreCommand(message, content) {
+  if (!isAdmin(message)) {
+    await message.reply('Command ini cuma buat Administrator yaa 🙏');
+    return;
+  }
+  let limit = 1000;
+  let force = false;
+  for (const a of content.split(/\s+/).slice(1)) {
+    if (/^timpa$/i.test(a)) force = true;
+    else if (/^\d+$/.test(a)) limit = Math.min(5000, Math.max(100, parseInt(a, 10)));
+  }
+
+  const existing = warState[message.channel.id];
+  if (existing?.members?.length && !force) {
+    await message.reply(`Channel ini masih punya data war boss (${existing.members.length} peserta), jadi gak aku timpa. Kalau memang mau diganti hasil pemulihan: \`!warpulih timpa\`.`);
+    return;
+  }
+  const me = message.guild?.members?.me;
+  if (me && !message.channel.permissionsFor?.(me)?.has(PermissionsBitField.Flags.ReadMessageHistory)) {
+    await message.reply('Bot butuh izin **Read Message History** di channel ini buat baca riwayatnya.');
+    return;
+  }
+
+  await message.channel.sendTyping?.().catch(() => {});
+  const history = await collectHistory(message.channel, limit);
+  const rebuilt = rebuildWarFromHistory(history, message.client.user.id);
+  if (!rebuilt) {
+    await message.reply(`Aku gak nemu pengumuman "WAR BOSS DIBUKA!" dari bot di ${history.length} pesan terakhir channel ini. Pastikan kamu ngetik di channel war-nya, atau naikkan batasnya: \`!warpulih 3000\`.`);
+    return;
+  }
+
+  const { war, notes } = rebuilt;
+  const perSlot = new Map();
+  war.members.forEach((m) => perSlot.set(m.server, (perSlot.get(m.server) || 0) + 1));
+  const slotText = [...perSlot.keys()].sort((a, b) => a - b).map((s) => `Slot ${s}: ${perSlot.get(s)}`).join(' • ') || '(kosong)';
+  await message.reply({
+    content:
+      `🔎 Ketemu war boss${war.title ? ` **${war.title}**` : ''} (dibuka <t:${Math.floor(Date.parse(war.openedAt) / 1000)}:f>, ${war.open ? 'masih kebuka' : 'sudah ditutup'}).\n` +
+      `Peserta terpulihkan: **${war.members.length}** (${slotText}) dari ${history.length} pesan yang dibaca.\n` +
+      (notes.length ? `${notes.map((n) => `• ${n}`).join('\n')}\n` : '') +
+      'Ketik **ya** dalam 30 detik buat simpan, atau **batal**.',
+    allowedMentions: NO_PING,
+  });
+
+  let answer;
+  try {
+    const collected = await message.channel.awaitMessages({
+      filter: (m) => m.author.id === message.author.id && /^(ya|batal)$/i.test(m.content.trim()),
+      max: 1,
+      time: 30 * 1000,
+      errors: ['time'],
+    });
+    answer = collected.first().content.trim().toLowerCase();
+  } catch {
+    await message.channel.send('⏱️ Waktu konfirmasi habis, data belum disimpan.');
+    return;
+  }
+  if (answer !== 'ya') {
+    await message.channel.send('Dibatalkan, data belum disimpan.');
+    return;
+  }
+
+  warState[message.channel.id] = war;
+  saveWar();
+  await message.channel.send({
+    content: `✅ Data war boss dipulihkan: **${war.members.length}** peserta (${slotText}). Cek dengan \`!warlist\` dan betulkan kalau ada yang meleset (\`!warpindah\`, \`!warhapus\`).`,
+    allowedMentions: NO_PING,
+  });
+}
+
 async function handleExtraCommand(message, content) {
   const lower = content.toLowerCase();
 
@@ -896,6 +1142,10 @@ async function handleExtraCommand(message, content) {
   }
   if (lower === '!waruntag' || lower.startsWith('!waruntag ')) {
     await handleWarRoleCommand(message, false);
+    return true;
+  }
+  if (lower === '!warpulih' || lower.startsWith('!warpulih ')) {
+    await handleWarRestoreCommand(message, content);
     return true;
   }
   if (lower === '!warselesai') {
