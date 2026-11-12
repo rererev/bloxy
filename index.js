@@ -1788,6 +1788,9 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
+  // Di channel tiket support, jawaban otomatis ditangani modul tiket (ticket.js), jadi handler ini diam.
+  if (require('./ticket').isTicketChannel(message.channel.id)) return;
+
   const question = message.content.trim();
   if (!question) return;
 
@@ -1878,5 +1881,20 @@ client.on('messageDeleteBulk', async (messages) => {
     console.error('Error saat log bulk delete:', err);
   }
 });
+
+// ====== TIKET SUPPORT: jawaban otomatis di dalam tiket (FAQ → data player → AI) ======
+async function answerTicketQuestion(question) {
+  const faqData = loadFaqData();
+  const matched = findAnswer(faqData, question);
+  if (matched) {
+    if (matched.dynamic === 'slot_status') return await getSlotStatusReply(client);
+    return pickAnswer(matched.jawaban);
+  }
+  const playerAnswer = findServerPlayersAnswer(question) || findPlayerLocationAnswer(question);
+  if (playerAnswer) return playerAnswer;
+  if (!AI_FALLBACK_ENABLED) return null;
+  return await askGroqAI(faqData, loadMemoryData(), question);
+}
+require('./ticket')(client, { answer: answerTicketQuestion }); // tiket support (!tiket)
 
 client.login(DISCORD_TOKEN);
